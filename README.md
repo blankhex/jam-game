@@ -11,7 +11,7 @@ python3 makepak.py Data data.pak
 ## Linux/MacOS
  
 ```sh
-makefile clean all
+make clean all
 ```
 
 ## Emscripten
