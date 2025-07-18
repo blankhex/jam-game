@@ -91,13 +91,11 @@ public:
     std::uint8_t DefaultLightGreen() const;
     std::uint8_t DefaultLightBlue() const;
 
+    void Reset();
     void Run();
     bool Input(SDL_Event* event);
     bool IsRunning();
     void Shutdown();
-
-private:
-    void Reset();
 
 private:
     SDL_Window* Window_;

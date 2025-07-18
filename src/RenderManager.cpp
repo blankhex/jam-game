@@ -290,7 +290,6 @@ void TRenderManager::Run() {
     SDL_SetRenderTarget(Renderer_, NULL);
     SDL_RenderCopy(Renderer_, ScreenTexture_, NULL, &destinationRect);
     SDL_RenderPresent(Renderer_);
-    Reset();
 }
 
 bool TRenderManager::Input(SDL_Event* event) {

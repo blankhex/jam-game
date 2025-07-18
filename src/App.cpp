@@ -40,6 +40,7 @@ void TApp::Process() {
         #endif
     }
 
+    RenderManager_->Reset();
     EntityManager_->Run();
     RenderManager_->Run();
 }
