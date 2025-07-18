@@ -1,0 +1,45 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.55
+
+      - name: Generate data.pak
+        run: |
+          python3 makepak.py Data data.pak
+
+      - name: Build with emcc
+        run: |
+          make -f Makefile.emcc
+
+      - name: Prepare deployment folder
+        run: |
+          mkdir deploy
+          cp eulamadness.html deploy/
+          cp eulamadness.js deploy/
+          cp eulamadness.wasm deploy/
+          cp data.pak deploy/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy
