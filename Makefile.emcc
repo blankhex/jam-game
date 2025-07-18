@@ -3,8 +3,8 @@
 # User configuration
 CC = emcc
 CXX = emcc
-CXXFLAGS ?= -sUSE_SDL=2 -std=c++17 -Iinclude -fexceptions
-LDFLAGS ?= -sUSE_SDL=2 -fexceptions --embed-file=data.pak@data.pak -sMAX_WEBGL_VERSION=2
+CXXFLAGS ?= -sUSE_SDL=2 -O3 -std=c++17 -Iinclude -fexceptions
+LDFLAGS ?= -sUSE_SDL=2 -O3 -fexceptions --embed-file=data.pak@data.pak -sMAX_WEBGL_VERSION=2
 TARGET = eulamadness.html
 
 # System configuration
