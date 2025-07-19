@@ -15,7 +15,7 @@ static NGame::TApp *app = nullptr;
 static void InitApp(void) {
     app = NGame::TApp::Instance();
 
-    app->EntityManager().RegisterEntity<THero>("Hero");
+    app->EntityManager().RegisterEntity<THero>("HeroEntity");
     app->EntityManager().RegisterEntity<TDirtEntity>("DirtEntity");
     app->EntityManager().RegisterEntity<TGrassEntity>("GrassEntity");
     app->EntityManager().RegisterEntity<TPlankEntity>("PlankEntity");
@@ -32,13 +32,14 @@ static void InitApp(void) {
     app->EntityManager().RegisterEntity<TBackgroundTiler>("BackgroundTiler");
     app->EntityManager().RegisterEntity<TRoomEntity>("RoomEntity");
     app->EntityManager().RegisterEntity<TRubbleEntity>("RubbleEntity");
+    app->EntityManager().RegisterEntity<TMainMenu>("MainMenu");
+    app->EntityManager().RegisterEntity<TIntroMenu>("IntroMenu");
+    app->EntityManager().RegisterEntity<TOutroMenu>("OutroMenu");
+    app->EntityManager().RegisterEntity<TEulaMenu>("EulaMenu");
+    app->EntityManager().RegisterEntity<TTorchEntity>("TorchEntity");
 
-    app->EntityManager().MakeEntityByName("RoomEntity");
-    app->EntityManager().MakeEntityByName("BackgroundTiler");
-
-    auto h = app->EntityManager().MakeEntityByName("Hero");
-    h->SetPosition({0, -16});
-    app->EntityManager().UpdateCollision(h);
+    app->EntityManager().AddToDeferred("RoomEntity");
+    app->EntityManager().Reset();
 }
 
 static void MainLoop(void) {

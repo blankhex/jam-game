@@ -40,6 +40,9 @@ public:
     std::shared_ptr<TEntity> MakeEntityByName(const std::string& name);
     bool IsPlaceEmpty(const Vec2i& position, const Vec2i& size, TEntity::TCollisionGroup group, TEntity::TId ignoreId = {});
     std::unordered_set<TEntity::TId> CollisionList(const Vec2i& position, const Vec2i& size, TEntity::TCollisionGroup group, TEntity::TId ignoreId = {});
+    std::vector<TEntity::TId> Ids() const;
+    void AddToDeferred(const std::string& name);
+    void Reset();
 
 private:
     using TFactoryMethod = std::shared_ptr<TEntity>(*)(TEntity::TId);
@@ -57,10 +60,12 @@ private:
     TRenderManager& RenderManager_;
     std::unordered_map<TEntity::TId, std::shared_ptr<TEntity>> Entities_;
     std::unordered_map<std::string, TFactoryMethod> EntityFactories_;
+    std::vector<std::string> DeferredEntities_;
     std::uint32_t LastUpdateTick_;
     TEntity::TId IdCounter_;
     std::size_t Timestep_;
     TGridmap Gridmap_;
+    bool PendingReset_ = false;
 };
 
 } // namespace NGame

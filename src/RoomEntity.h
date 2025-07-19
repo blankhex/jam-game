@@ -231,8 +231,6 @@ private:
 
     enum ETile {
         Empty,
-        Baddy,
-        Curse,
         Dirt,
         Grass,
         HighDirt,
@@ -243,7 +241,7 @@ private:
         Passage,
         Plank,
         Spike,
-        Utility,
+        Torch
     };
 
     struct TRoom {
@@ -316,7 +314,11 @@ private:
     NGame::Vec2i LastStablePosition_ = {};
     NGame::Vec2f Speed_ = NGame::Vec2f(0.0, 0.0);
     NGame::Vec2f Fraction_ = NGame::Vec2f(0.0, 0.0);
-    NGame::Vec2i Want_;
+    NGame::Vec2i ExitPosition_;
+    
+
+    bool WhiteFade_ = false;
+    std::size_t FadeAmount_ = 0;
 };
 
 class TBackgroundTiler : public NGame::TEntity {
@@ -347,9 +349,82 @@ private:
     NGame::TApp* App_;    
     NGame::TSpriteManager& SpriteManager_;
     NGame::TRenderManager& RenderManager_;
-    
+
     const float Gravity_ = 500;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
     NGame::Vec2f Speed_ = NGame::Vec2f(0.0, 0.0);
     NGame::Vec2f Fraction_ = NGame::Vec2f(0.0, 0.0);
+    bool Flip_ = false;
+};
+
+class TMainMenu : public NGame::TEntity {
+public:
+    TMainMenu(NGame::TEntity::TId id);
+
+    virtual void Update(std::uint32_t delta) override;
+    virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+
+private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+};
+
+class TEulaMenu : public NGame::TEntity {
+public:
+    TEulaMenu(NGame::TEntity::TId id);
+
+    virtual void Update(std::uint32_t delta) override;
+    virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+
+private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+};
+
+class TIntroMenu : public NGame::TEntity {
+public:
+    TIntroMenu(NGame::TEntity::TId id);
+
+    virtual void Update(std::uint32_t delta) override;
+    virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+
+private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+};
+
+class TOutroMenu : public NGame::TEntity {
+public:
+    TOutroMenu(NGame::TEntity::TId id);
+
+    virtual void Update(std::uint32_t delta) override;
+    virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+
+private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+};
+
+class TTorchEntity : public NGame::TEntity {
+public:
+    TTorchEntity(NGame::TEntity::TId id);
+
+    virtual void Update(std::uint32_t delta) override;
+    virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+
+private:
+    std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
+    std::shared_ptr<NGame::TSpriteManager::TSprite> LightSprite_;
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
 };

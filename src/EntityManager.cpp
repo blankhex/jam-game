@@ -11,6 +11,15 @@ TEntityManager::TEntityManager(TRenderManager& renderManager, std::size_t timest
 }
 
 void TEntityManager::Run() {
+    if (PendingReset_) {
+        PendingReset_ = false;
+        Entities_.clear();
+        for (const auto& name : DeferredEntities_) {
+            MakeEntityByName(name);
+        }
+        DeferredEntities_.clear();
+    }
+
     Input();
     Update();
     Draw();
@@ -83,6 +92,25 @@ std::unordered_set<TEntity::TId> TEntityManager::CollisionList(const Vec2i& posi
         }
     }
     return query;
+}
+
+std::vector<TEntity::TId> TEntityManager::Ids() const {
+    std::vector<TEntity::TId> result;
+
+    result.reserve(Entities_.size());
+    for (const auto& entity : Entities_) {
+        result.push_back(entity.first);
+    }
+
+    return result;
+}
+
+void TEntityManager::AddToDeferred(const std::string& name) {
+    DeferredEntities_.push_back(name);
+}
+
+void TEntityManager::Reset() {
+    PendingReset_ = true;
 }
 
 void TEntityManager::Input() {

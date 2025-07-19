@@ -81,11 +81,10 @@ TStoneEntity::TStoneEntity(NGame::TEntity::TId id)
     , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(TERRAIN_GROUP);
     SetSize({16, 16});
-    Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Wall.txt");
+    Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/PushRock.txt");
 }
 
 void TStoneEntity::Update(std::uint32_t delta) {
-
 }
 
 void TStoneEntity::Draw() const {
@@ -110,10 +109,6 @@ void TLadderEntity::Update(std::uint32_t delta) {
 void TLadderEntity::Draw() const {
     NGame::TApp::Instance()->RenderManager().SetLayer(NGame::TRenderManager::Background);
     NGame::TApp::Instance()->SpriteManager().Draw(Sprite_, 0, Position());
-
-    NGame::TApp::Instance()->RenderManager().SetLayer(NGame::TRenderManager::Light);
-    auto light = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Light.txt");
-    NGame::TApp::Instance()->SpriteManager().Draw(light, 1, Position() - (light->Frames[1].Size * 2 / 2) + Size() / 2, {2, 2});
 }
 
 TExplosionEntity::TExplosionEntity(NGame::TEntity::TId id)
@@ -315,7 +310,7 @@ void TExitEntity::Update(std::uint32_t delta) {
 
 void TExitEntity::Draw() const {
     NGame::TApp::Instance()->RenderManager().SetLayer(NGame::TRenderManager::Background);
-    NGame::TApp::Instance()->SpriteManager().Draw(Sprite_, 0, Position());
+    NGame::TApp::Instance()->SpriteManager().Draw(Sprite_, 1, Position());
 }
 
 TFloatingTextEntity::TFloatingTextEntity(NGame::TEntity::TId id)
@@ -418,9 +413,7 @@ void TRoomEntity::FillRow(const std::string& data, std::size_t row, TRoom& room)
         case 'D': room.data[row * 10 + i] = Spike; break;
         case 'p': room.data[row * 10 + i] = Passage; break;
         case 'P': room.data[row * 10 + i] = Plank; break;
-        case 'c': room.data[row * 10 + i] = Curse; break;
-        case 'b': room.data[row * 10 + i] = Baddy; break;
-        case 'u': room.data[row * 10 + i] = Utility; break;
+        case 't': room.data[row * 10 + i] = Torch; break;
         default: break;
         }
     }
@@ -515,6 +508,40 @@ void TRoomEntity::GenerateLayout() {
             GenerateRoom(maze, NGame::Vec2i(j, i));
         }
     }
+
+    // Add border
+    for (int i = -1; i <= ROOM_WIDTH * 10; i++) {
+        auto wall = NGame::TApp::Instance()->EntityManager().MakeEntityByName("StoneEntity");
+        wall->SetPosition({i * 16, -16});
+        NGame::TApp::Instance()->EntityManager().UpdateCollision(wall);
+
+        wall = NGame::TApp::Instance()->EntityManager().MakeEntityByName("StoneEntity");
+        wall->SetPosition({i * 16, 16 * (ROOM_HEIGHT * 6)});
+        NGame::TApp::Instance()->EntityManager().UpdateCollision(wall);
+    }
+    
+    for (int i = -1; i <= ROOM_HEIGHT * 6; i++) {
+        auto wall = NGame::TApp::Instance()->EntityManager().MakeEntityByName("StoneEntity");
+        wall->SetPosition({-16, i * 16});
+        NGame::TApp::Instance()->EntityManager().UpdateCollision(wall);
+
+        wall = NGame::TApp::Instance()->EntityManager().MakeEntityByName("StoneEntity");
+        wall->SetPosition({16 * (ROOM_WIDTH * 10), i * 16});
+        NGame::TApp::Instance()->EntityManager().UpdateCollision(wall);
+    }
+
+    // Create background tiler and hero entity
+    NGame::TApp::Instance()->EntityManager().MakeEntityByName("BackgroundTiler");
+    auto hero = NGame::TApp::Instance()->EntityManager().MakeEntityByName("HeroEntity");
+
+    for (const auto& otherId : NGame::TApp::Instance()->EntityManager().Ids()) {
+        auto other = NGame::TApp::Instance()->EntityManager().Entity(otherId);
+        if (dynamic_cast<TEntranceEntity*>(other.get())) {
+            hero->SetPosition(other->Position());
+            NGame::TApp::Instance()->EntityManager().UpdateCollision(hero);
+            break;
+        }
+    }
 }
 
 void TRoomEntity::GenerateRoom(int* maze, const NGame::Vec2i& position) {
@@ -522,6 +549,7 @@ void TRoomEntity::GenerateRoom(int* maze, const NGame::Vec2i& position) {
     auto roomType = maze[ROOM_WIDTH * position.Y + position.X];
     TRoom sourceRoom;
     int randomRoomChance = rand() % 100;
+    NGame::Vec2i startPosition = {0, 0};
 
     SelectRoom(roomType & LeftRightUpDown, sourceRoom);
     for (int i = 0; i < 6; i++) {    
@@ -571,32 +599,24 @@ void TRoomEntity::GenerateRoom(int* maze, const NGame::Vec2i& position) {
                 break;
 
             case Mine:
-                if (NGame::TApp::Instance()->State().Variable("MoreMines").Bool()) {
-                    if (rand() % 100 < 50) {
-                        entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("MineEntity");
-                    }
-                } else {
-                    if (rand() % 100 < 25) {
-                        entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("MineEntity");
-                    }
-                }
+                entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("MineEntity");
                 break;
 
             case Passage:
-                if (roomType & (Start | Exit)) {
+                if (roomType & Start) {
                     entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("EntranceEntity");
-                }
-                break;
-
-            case Curse:
-                if (rand() % 100 < 25) {
-                    entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("CurseEntity");
+                } else if (roomType & Exit) {
+                    entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("ExitEntity");
                 }
                 break;
 
             case Spike:
-                if (rand() % 100 < 75) {
-                    entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("SpikeEntity");
+                entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("SpikeEntity");
+                break;
+
+            case Torch:
+                if (rand() % 100 < 15) {
+                    entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("TorchEntity");
                 }
                 break;
             }
@@ -616,17 +636,17 @@ void TRoomEntity::SelectRoom(int type, TRoom& room) {
 
     if (type == LeftRight) {
         selection.insert(selection.end(), LRRooms_.begin(), LRRooms_.end());
-        selection.insert(selection.end(), LRDRooms_.begin(), LRDRooms_.end());
-        selection.insert(selection.end(), LRURooms_.begin(), LRURooms_.end());
-        selection.insert(selection.end(), LRUDRooms_.begin(), LRUDRooms_.end());
+        // selection.insert(selection.end(), LRDRooms_.begin(), LRDRooms_.end());
+        // selection.insert(selection.end(), LRURooms_.begin(), LRURooms_.end());
+        // selection.insert(selection.end(), LRUDRooms_.begin(), LRUDRooms_.end());
         room = selection[rand() % selection.size()];
     } else if (type == LeftRightUp) {
         selection.insert(selection.end(), LRURooms_.begin(), LRURooms_.end());
-        selection.insert(selection.end(), LRUDRooms_.begin(), LRUDRooms_.end());
+        // selection.insert(selection.end(), LRUDRooms_.begin(), LRUDRooms_.end());
         room = selection[rand() % selection.size()];
     } else if (type == LeftRightDown) {
         selection.insert(selection.end(), LRDRooms_.begin(), LRDRooms_.end());
-        selection.insert(selection.end(), LRUDRooms_.begin(), LRUDRooms_.end());
+        // selection.insert(selection.end(), LRUDRooms_.begin(), LRUDRooms_.end());
         room = selection[rand() % selection.size()];
     } else if (type == LeftRightUpDown) {
         room = LRUDRooms_[rand() % LRUDRooms_.size()];
@@ -649,10 +669,22 @@ THero::THero(NGame::TEntity::TId id)
     SetSize(NGame::Vec2i(4, 12));
     SetPosition(NGame::Vec2i(0, 0));
     SetCollisionGroup(HERO_GROUP);
-    NGame::TApp::Instance()->RenderManager().EnableLight(false);
-    NGame::TApp::Instance()->RenderManager().SetDefaultLightColor(255, 0, 0);
+    NGame::TApp::Instance()->RenderManager().EnableLight(true);
+    NGame::TApp::Instance()->RenderManager().SetDefaultLightColor(0, 0, 0);
 
     Alarm_.Set(0, 100);
+
+    // Find exit entity
+    auto otherIds = App_->EntityManager().Ids();
+    ExitPosition_ = {0, 0};
+    for (const auto& otherId : otherIds) {
+        auto other = App_->EntityManager().Entity(otherId);
+
+        if (dynamic_cast<TExitEntity*>(other.get())) {
+            ExitPosition_ = other->Position();
+            break;
+        }
+    }
 }
 
 void THero::Input(SDL_Event* event) {
@@ -1007,7 +1039,11 @@ void THero::Update(std::uint32_t delta) {
     }
     
     // Set camera to track hero
-    RenderManager_.SetCamera(Position() - App_->RenderManager().Size() / 2);
+    auto cameraPosition = Position() + Size() / 2 - RenderManager_.Size() / 2;
+
+    cameraPosition.X = std::min(std::max(cameraPosition.X, -16), 16 * 10 * ROOM_WIDTH - RenderManager_.Size().X + 16);
+    cameraPosition.Y = std::min(std::max(cameraPosition.Y, -16), 16 * 6 * ROOM_HEIGHT - RenderManager_.Size().Y + 16);
+    RenderManager_.SetCamera(cameraPosition);
 
     // Reset pressed keys
     IgnorePlanks_ = false;
@@ -1042,6 +1078,48 @@ void THero::Draw() const {
     RenderManager_.SetLayer(NGame::TRenderManager::Light);
     auto light = SpriteManager_.Get("Sprites/Light.txt");
     SpriteManager_.Draw(light, 0, Position() - (light->Frames[0].Size * 4 / 2), {4, 4});
+
+    if (!App_->State().Variable("NoCompas").Bool()) {
+        auto heroCenter = RenderManager_.Camera() + RenderManager_.Size() / 2;
+        auto delta = ExitPosition_ - heroCenter;
+        auto halfScreenSize = RenderManager_.Size() / 2;
+        auto screenPosition = delta + halfScreenSize;
+
+        if (screenPosition.X < 0 || screenPosition.X > 304 ||
+            screenPosition.Y < 16 || screenPosition.Y > 224) {
+            int index = 0;
+         
+            if (std::abs(delta.X) > std::abs(delta.Y)) {
+                if (screenPosition.X < halfScreenSize.X) {
+                    index = 2;
+                } else {
+                    index = 0;
+                }
+            } else {
+                if (screenPosition.Y < halfScreenSize.Y) {
+                    index = 1;
+                } else {
+                    index = 3;
+                }
+            }
+            RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+            screenPosition.X = std::min(std::max(screenPosition.X, 0), RenderManager_.Size().X - 16);
+            screenPosition.Y = std::min(std::max(screenPosition.Y, 16), RenderManager_.Size().Y - 16);
+            
+            auto arrow = SpriteManager_.Get("Sprites/Arrow.txt");
+            SpriteManager_.Draw(arrow, index, screenPosition);
+        }
+    }
+
+    if (FadeAmount_) {
+        RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+        if (WhiteFade_) {
+            RenderManager_.SetColor(255, 255, 255, FadeAmount_);
+        } else {
+            RenderManager_.SetColor(0, 0, 0, FadeAmount_);
+        }
+        RenderManager_.DrawRect({0, 0}, {320, 240}, true);
+    }
 }
 
 void THero::Alarm(NGame::TAlarm::TId id) {
@@ -1078,7 +1156,8 @@ TRubbleEntity::TRubbleEntity(NGame::TEntity::TId id)
     , SpriteManager_(App_->SpriteManager()) {
     SetSize(8);
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Stone.txt");
-    Alarm_.Set(0, 5000);
+    Alarm_.Set(0, 3000 + rand() % 1000);
+    Flip_ = (rand() % 2) == 0;
 }
 
 void TRubbleEntity::Update(std::uint32_t delta) {
@@ -1105,7 +1184,11 @@ void TRubbleEntity::Update(std::uint32_t delta) {
 
 void TRubbleEntity::Draw() const {
     RenderManager_.SetLayer(NGame::TRenderManager::Foreground);
-    SpriteManager_.Draw(Sprite_, 0, Position());
+    if (Flip_) {
+        SpriteManager_.Draw(Sprite_, 0, Position());
+    } else {
+        SpriteManager_.Draw(Sprite_, 0, Position(), {-1, 1});
+    }
 }
 
 void TRubbleEntity::Alarm(NGame::TAlarm::TId id) {
@@ -1120,4 +1203,113 @@ const NGame::Vec2f& TRubbleEntity::Speed() const {
 
 void TRubbleEntity::SetSpeed(const NGame::Vec2f& speed) {
     Speed_ = speed;
+}
+
+TMainMenu::TMainMenu(NGame::TEntity::TId id)
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
+
+}
+
+void TMainMenu::Update(std::uint32_t delta) {
+
+}
+
+void TMainMenu::Draw() const {
+
+}
+
+void TMainMenu::Alarm(NGame::TAlarm::TId id) {
+
+}
+
+
+TEulaMenu::TEulaMenu(NGame::TEntity::TId id)
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
+
+}
+
+void TEulaMenu::Update(std::uint32_t delta) {
+
+}
+
+void TEulaMenu::Draw() const {
+
+}
+
+void TEulaMenu::Alarm(NGame::TAlarm::TId id) {
+
+}
+
+TIntroMenu::TIntroMenu(NGame::TEntity::TId id)
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
+
+}
+
+void TIntroMenu::Update(std::uint32_t delta) {
+
+}
+
+void TIntroMenu::Draw() const {
+
+}
+
+void TIntroMenu::Alarm(NGame::TAlarm::TId id) {
+
+}
+
+TOutroMenu::TOutroMenu(NGame::TEntity::TId id)
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
+
+}
+
+void TOutroMenu::Update(std::uint32_t delta) {
+
+}
+
+void TOutroMenu::Draw() const {
+
+}
+
+void TOutroMenu::Alarm(NGame::TAlarm::TId id) {
+
+}
+
+TTorchEntity::TTorchEntity(NGame::TEntity::TId id)
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
+    SetSize(16);
+    Sprite_ = SpriteManager_.Get("Sprites/Item.txt");
+    LightSprite_ = SpriteManager_.Get("Sprites/Light.txt");
+}
+
+void TTorchEntity::Update(std::uint32_t delta) {
+
+}
+
+void TTorchEntity::Draw() const {
+    RenderManager_.SetLayer(NGame::TRenderManager::Background);
+    SpriteManager_.Draw(Sprite_, 2, Position());
+
+    if (RenderManager_.IsLightEnabled()) {
+        RenderManager_.SetLayer(NGame::TRenderManager::Light);
+        SpriteManager_.Draw(LightSprite_, 1, Position() + Size() / 2 - LightSprite_->Frames[1].Size * 2, {4, 4});
+    }
+}
+
+void TTorchEntity::Alarm(NGame::TAlarm::TId id) {
+
 }
