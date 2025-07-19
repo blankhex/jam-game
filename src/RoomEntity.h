@@ -8,6 +8,7 @@
 #define ITEM_GROUP 0x08
 #define PASSAGE_GROUP 0x10
 #define PLANK_GROUP 0x20
+#define HERO_GROUP 0x40
 
 class TDirtEntity : public NGame::TEntity {
 public:
@@ -16,19 +17,14 @@ public:
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
 
-private:
+protected:
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
-class TGrassEntity : public NGame::TEntity {
+class TGrassEntity : public TDirtEntity {
 public:
     TGrassEntity(NGame::TEntity::TId id);
-    
-    virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
-
-private:
-    std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
 class TPlankEntity : public NGame::TEntity {
@@ -89,6 +85,11 @@ private:
 
 class TMineEntity : public NGame::TEntity {
 public:
+    enum EState {
+        Dormant,
+        Active
+    };
+
     TMineEntity(NGame::TEntity::TId id);
 
     virtual void Update(std::uint32_t delta) override;
@@ -96,7 +97,12 @@ public:
     virtual void Alarm(NGame::TAlarm::TId id) override;
 
 private:
+    bool AlternateBlink_ = false;
+    std::size_t Remaining_ = 0;
+    EState State_ = Dormant;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
+    std::shared_ptr<NGame::TSpriteManager::TSprite> Blinking_;
+    const NGame::Vec2i TriggerRadius_ = {8, 8};
 };
 
 class TCurseEntity : public NGame::TEntity {
@@ -116,8 +122,11 @@ public:
 
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
+    bool IsBloody() const;
+    void SetBloody(bool value);
 
 private:
+    bool IsBloody_ = false;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -241,6 +250,7 @@ public:
         Fall,
         Climb,
         Hold,
+        Dead,
     };
 
     virtual void Input(SDL_Event* event) override;
@@ -257,6 +267,7 @@ private:
     EState State_ = EState::Normal;
 
     const float Gravity_ = 500.0;
+    NGame::Vec2i LastStablePosition_ = {};
     NGame::Vec2f Speed_ = NGame::Vec2f(0.0, 0.0);
     NGame::Vec2f Fraction_ = NGame::Vec2f(0.0, 0.0);
     NGame::Vec2i Want_;
@@ -269,4 +280,22 @@ public:
 
 private:
     std::shared_ptr<NGame::TSpriteManager::TSprite> Background_;
+};
+
+class TRubbleEntity : public NGame::TEntity {
+public:
+    TRubbleEntity(NGame::TEntity::TId id);
+
+    virtual void Update(std::uint32_t delta) override;
+    virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+
+    const NGame::Vec2f& Speed() const;
+    void SetSpeed(const NGame::Vec2f& speed);
+
+private:
+    const float Gravity_ = 500;
+    std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
+    NGame::Vec2f Speed_ = NGame::Vec2f(0.0, 0.0);
+    NGame::Vec2f Fraction_ = NGame::Vec2f(0.0, 0.0);
 };

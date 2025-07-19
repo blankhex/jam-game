@@ -25,6 +25,7 @@ public:
         Effects,
         EffectsGlow,
         Light,
+        AfterLightEffects,
         Interface,
         SentinelMax
     };

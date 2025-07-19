@@ -16,7 +16,35 @@ TDirtEntity::TDirtEntity(NGame::TEntity::TId id)
 }
 
 void TDirtEntity::Update(std::uint32_t delta) {
+    auto entityList = NGame::TApp::Instance()->EntityManager().CollisionList(Position(), Size(), DAMAGE_GROUP, Id());
 
+    for (auto& otherId : entityList) {
+        auto other = NGame::TApp::Instance()->EntityManager().Entity(otherId);
+
+        if (dynamic_cast<TExplosionEntity*>(other.get())) {
+            auto explosionCenter = other->Position() + other->Size() / 2;
+            auto ourCenter = Position() + Size() / 2;
+
+            float distance = (ourCenter - explosionCenter).Length();
+            if (distance <= other->Size().X) {
+                Remove();
+
+                std::size_t rockCount = rand() % 3 + 1;
+                while (rockCount--) {
+                    NGame::Vec2f speedVector;
+
+                    auto rockEntity = NGame::TApp::Instance()->EntityManager().MakeEntity<TRubbleEntity>();
+                    rockEntity->SetPosition(Position());
+                    speedVector.X = rand() % 100 - 50;
+                    speedVector.Y = rand() % 50;
+                    speedVector = speedVector.Normilize() * 100;
+                    dynamic_cast<TRubbleEntity*>(rockEntity.get())->SetSpeed(speedVector);
+                }
+
+                break;
+            }
+        }
+    }
 }
 
 void TDirtEntity::Draw() const {
@@ -25,14 +53,7 @@ void TDirtEntity::Draw() const {
 }
 
 TGrassEntity::TGrassEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
-    SetCollisionGroup(TERRAIN_GROUP);
-    SetSize({16, 16});
-    Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Wall.txt");
-}
-
-void TGrassEntity::Update(std::uint32_t delta) {
-
+    : TDirtEntity(id) {
 }
 
 void TGrassEntity::Draw() const {
@@ -95,12 +116,12 @@ void TLadderEntity::Draw() const {
 TExplosionEntity::TExplosionEntity(NGame::TEntity::TId id)
     : NGame::TEntity(id) {
     SetCollisionGroup(DAMAGE_GROUP);
-    SetSize({16, 16});
-    Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Wall.txt");
+    SetSize({64, 64});
+    Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Light.txt");
+    Alarm_.Set(0, 50);
 }
 
 void TExplosionEntity::Update(std::uint32_t delta) {
-
 }
 
 void TExplosionEntity::Draw() const {
@@ -109,7 +130,9 @@ void TExplosionEntity::Draw() const {
 }
 
 void TExplosionEntity::Alarm(NGame::TAlarm::TId id) {
-
+    if (id == 0) {
+        Remove();
+    }
 }
 
 TKeyEntity::TKeyEntity(NGame::TEntity::TId id)
@@ -132,19 +155,75 @@ TMineEntity::TMineEntity(NGame::TEntity::TId id)
     : NGame::TEntity(id) {
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Mine.txt");
+    Blinking_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Flash.txt");
 }
 
 void TMineEntity::Update(std::uint32_t delta) {
+    auto& entityManager = NGame::TApp::Instance()->EntityManager();
+    switch (State_) {
 
+    case Dormant:
+        if (!entityManager.IsPlaceEmpty(Position() + Size() / 2 - TriggerRadius_ / 2, TriggerRadius_, HERO_GROUP)) {
+            Remaining_ = rand() % 5 + 5;
+            if (!(Remaining_ % 2)) {
+                Remaining_ += 1;
+            }
+            Alarm_.Set(0, 100);
+            State_ = Active;
+        }
+        break;
+
+    case Active:
+        if (!Remaining_) {
+            auto explosion = entityManager.MakeEntity<TExplosionEntity>();
+            explosion->SetPosition(Position() + Size() / 2 - explosion->Size() / 2 + NGame::Vec2i{0, 4});
+            Remove();
+        }
+        break;
+    }
+
+    // Chain detonation
+    auto entityList = NGame::TApp::Instance()->EntityManager().CollisionList(Position(), Size(), DAMAGE_GROUP, Id());
+
+    for (auto& otherId : entityList) {
+        auto other = NGame::TApp::Instance()->EntityManager().Entity(otherId);
+
+        if (dynamic_cast<TExplosionEntity*>(other.get())) {
+            auto explosionCenter = other->Position() + other->Size() / 2;
+            auto ourCenter = Position() + Size() / 2;
+
+            float distance = (ourCenter - explosionCenter).Length();
+            if (distance <= other->Size().X) {
+                auto explosion = entityManager.MakeEntity<TExplosionEntity>();
+                explosion->SetPosition(Position() + Size() / 2 - explosion->Size() / 2 + NGame::Vec2i{0, 4});
+                Remove();
+                break;
+            }
+        }
+    }
+    
 }
 
 void TMineEntity::Draw() const {
-    NGame::TApp::Instance()->RenderManager().SetLayer(NGame::TRenderManager::Background);
-    NGame::TApp::Instance()->SpriteManager().Draw(Sprite_, 0, Position());
+    auto& renderManager = NGame::TApp::Instance()->RenderManager();
+    auto& spriteManager = NGame::TApp::Instance()->SpriteManager();
+
+    renderManager.SetLayer(NGame::TRenderManager::Background);
+    spriteManager.Draw(Sprite_, 0, Position());
+
+    if (State_ == EState::Active) {
+        renderManager.SetLayer(NGame::TRenderManager::EffectsGlow);
+        spriteManager.Draw(Blinking_, AlternateBlink_, Position() + (Size() * NGame::Vec2f(0.5f, 0.75f)) - Blinking_->Frames[0].Size, {2, 2});
+    }
 }
 
 void TMineEntity::Alarm(NGame::TAlarm::TId id) {
-
+    if (id == 0) {
+        AlternateBlink_ = !AlternateBlink_;
+        if (Remaining_) {
+            --Remaining_;
+        }
+    }
 }
 
 TCurseEntity::TCurseEntity(NGame::TEntity::TId id)
@@ -176,7 +255,15 @@ void TSpikeEntity::Update(std::uint32_t delta) {
 
 void TSpikeEntity::Draw() const {
     NGame::TApp::Instance()->RenderManager().SetLayer(NGame::TRenderManager::Background);
-    NGame::TApp::Instance()->SpriteManager().Draw(Sprite_, 0, Position());
+    NGame::TApp::Instance()->SpriteManager().Draw(Sprite_, IsBloody_, Position());
+}
+
+bool TSpikeEntity::IsBloody() const {
+    return IsBloody_;
+}
+
+void TSpikeEntity::SetBloody(bool value) {
+    IsBloody_ = value;
 }
 
 TEntranceEntity::TEntranceEntity(NGame::TEntity::TId id)
@@ -232,7 +319,7 @@ void TFloatingTextEntity::Draw() const {
     auto& renderManager = NGame::TApp::Instance()->RenderManager();
     auto& fontManager = NGame::TApp::Instance()->FontManager();
 
-    renderManager.SetLayer(NGame::TRenderManager::Effects);
+    renderManager.SetLayer(NGame::TRenderManager::AfterLightEffects);
     fontManager.Draw(Color_, Position(), Text_);
 }
 
@@ -474,7 +561,9 @@ void TRoomEntity::GenerateRoom(int* maze, const NGame::Vec2i& position) {
                 break;
 
             case Passage:
-                entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("EntranceEntity");
+                if (roomType & (Start | Exit)) {
+                    entity = NGame::TApp::Instance()->EntityManager().MakeEntityByName("EntranceEntity");
+                }
                 break;
 
             case Curse:
@@ -534,8 +623,9 @@ THero::THero(NGame::TEntity::TId id)
     : NGame::TEntity(id) {
     SetSize(NGame::Vec2i(4, 12));
     SetPosition(NGame::Vec2i(0, 0));
-    NGame::TApp::Instance()->RenderManager().EnableLight(true);
-    NGame::TApp::Instance()->RenderManager().SetDefaultLightColor(0, 0, 0);
+    SetCollisionGroup(HERO_GROUP);
+    NGame::TApp::Instance()->RenderManager().EnableLight(false);
+    NGame::TApp::Instance()->RenderManager().SetDefaultLightColor(255, 0, 0);
 
     Alarm_.Set(0, 100);
 }
@@ -617,6 +707,7 @@ void THero::Input(SDL_Event* event) {
 
 void THero::Update(std::uint32_t delta) {
     auto app = NGame::TApp::Instance();
+    auto& entityManager = app->EntityManager();
 
     for (bool repeatState = true; repeatState; ) {
         repeatState = false;
@@ -633,20 +724,20 @@ void THero::Update(std::uint32_t delta) {
                 Speed_.X = -100;
             }
             if (KeysPressed_[static_cast<int>(EKeys::X)]) {
-                auto entity = app->EntityManager().MakeEntityByName("FloatingTextEntity");
+                auto entity = entityManager.MakeEntityByName("FloatingTextEntity");
                 auto targetEntity = dynamic_cast<TFloatingTextEntity*>(entity.get());
                 targetEntity->SetText("You died, LMAO");
                 targetEntity->SetColor(NGame::TFontManager::Red);
                 targetEntity->SetPosition(Position());
             }
 
-            if (!app->EntityManager().IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
+            if (!entityManager.IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
                 if (KeysHeld_[static_cast<int>(EKeys::Up)] || KeysHeld_[static_cast<int>(EKeys::Down)]) {
                     State_ = EState::Climb;
                     continue;
                 }
             }
-            if (!app->EntityManager().IsPlaceEmpty(Position() + NGame::Vec2i(-2, Size().Y), NGame::Vec2i(Size().X + 4, 1), TERRAIN_GROUP, Id())) {
+            if (!entityManager.IsPlaceEmpty(Position() + NGame::Vec2i(-2, Size().Y), NGame::Vec2i(Size().X + 4, 1), TERRAIN_GROUP, Id())) {
                 if (KeysHeld_[static_cast<int>(EKeys::Down)]) {
                     if (KeysPressed_[static_cast<int>(EKeys::Z)]) {
                         IgnorePlanks_ = true;
@@ -667,13 +758,15 @@ void THero::Update(std::uint32_t delta) {
                 continue;
             }
 
+            LastStablePosition_ = Position();
+
             break;
 
         case EState::Jump:
             Speed_.X = 0;
             Speed_.Y += MovementPerTick(delta, Gravity_);
 
-            if (!app->EntityManager().IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
+            if (!entityManager.IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
                 if (KeysHeld_[static_cast<int>(EKeys::Up)] || KeysHeld_[static_cast<int>(EKeys::Down)]) {
                     State_ = EState::Climb;
                     continue;
@@ -695,7 +788,7 @@ void THero::Update(std::uint32_t delta) {
             Speed_.X = 0;
             Speed_.Y += MovementPerTick(delta, Gravity_);
 
-            if (!app->EntityManager().IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
+            if (!entityManager.IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
                 if (KeysHeld_[static_cast<int>(EKeys::Up)] || KeysHeld_[static_cast<int>(EKeys::Down)]) {
                     State_ = EState::Climb;
                     continue;
@@ -703,9 +796,9 @@ void THero::Update(std::uint32_t delta) {
             }
             if (KeysHeld_[static_cast<int>(EKeys::Right)]) {
                 Speed_.X = 100;
-                auto collisonIds = app->EntityManager().CollisionList(Position() + NGame::Vec2i(Size().X, 0), NGame::Vec2i(Size().X, 2), TERRAIN_GROUP, Id());
+                auto collisonIds = entityManager.CollisionList(Position() + NGame::Vec2i(Size().X, 0), NGame::Vec2i(Size().X, 2), TERRAIN_GROUP, Id());
                 auto containsWall = std::any_of(collisonIds.begin(), collisonIds.end(), [&](TEntity::TId id) {
-                    auto other = app->EntityManager().Entity(id);
+                    auto other = entityManager.Entity(id);
                     if (dynamic_cast<TPlankEntity*>(other.get())) {
                         return false;
                     }
@@ -713,7 +806,7 @@ void THero::Update(std::uint32_t delta) {
                 });
 
                 if (containsWall) {
-                    if (app->EntityManager().IsPlaceEmpty(Position() + NGame::Vec2i(0, -Size().Y), NGame::Vec2i(Size().X * 2, Size().Y), TERRAIN_GROUP, Id())) {
+                    if (entityManager.IsPlaceEmpty(Position() + NGame::Vec2i(0, -Size().Y), NGame::Vec2i(Size().X * 2, Size().Y), TERRAIN_GROUP, Id())) {
                         State_ = EState::Hold;
                         continue;
                     }
@@ -721,9 +814,9 @@ void THero::Update(std::uint32_t delta) {
             }
             if (KeysHeld_[static_cast<int>(EKeys::Left)]) {
                 Speed_.X = -100;
-                auto collisonIds = app->EntityManager().CollisionList(Position() - NGame::Vec2i(Size().X, 0), NGame::Vec2i(Size().X, 2), TERRAIN_GROUP, Id());
+                auto collisonIds = entityManager.CollisionList(Position() - NGame::Vec2i(Size().X, 0), NGame::Vec2i(Size().X, 2), TERRAIN_GROUP, Id());
                 auto containsWall = std::any_of(collisonIds.begin(), collisonIds.end(), [&](TEntity::TId id) {
-                    auto other = app->EntityManager().Entity(id);
+                    auto other = entityManager.Entity(id);
                     if (dynamic_cast<TPlankEntity*>(other.get())) {
                         return false;
                     }
@@ -731,20 +824,20 @@ void THero::Update(std::uint32_t delta) {
                 });
 
                 if (containsWall) {
-                    if (app->EntityManager().IsPlaceEmpty(Position() - NGame::Vec2i(Size().X, Size().Y), NGame::Vec2i(Size().X * 2, Size().Y), TERRAIN_GROUP, Id())) {
+                    if (entityManager.IsPlaceEmpty(Position() - NGame::Vec2i(Size().X, Size().Y), NGame::Vec2i(Size().X * 2, Size().Y), TERRAIN_GROUP, Id())) {
                         State_ = EState::Hold;
                         continue;
                     }
                 }
             }
-            if (!app->EntityManager().IsPlaceEmpty(Position() + NGame::Vec2i(0, Size().Y), NGame::Vec2i(Size().X, 1), TERRAIN_GROUP, Id())) {
+            if (!entityManager.IsPlaceEmpty(Position() + NGame::Vec2i(0, Size().Y), NGame::Vec2i(Size().X, 1), TERRAIN_GROUP, Id())) {
                 State_ = EState::Normal;
                 continue;
             }
             break;
 
         case EState::Climb:
-            if (app->EntityManager().IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
+            if (entityManager.IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
                 State_ = EState::Normal;
                 repeatState = true;
                 continue;
@@ -763,6 +856,7 @@ void THero::Update(std::uint32_t delta) {
             if (KeysHeld_[static_cast<int>(EKeys::Down)]) {
                 Speed_.Y = 100;
             }
+            LastStablePosition_ = Position();
             break;
 
         case EState::Hold:
@@ -776,7 +870,48 @@ void THero::Update(std::uint32_t delta) {
                 State_ = EState::Jump;
                 continue;
             }
+            LastStablePosition_ = Position();
             break;
+
+        case EState::Dead:
+            Speed_.Y += MovementPerTick(delta, Gravity_);
+            break;
+        }   
+    }
+
+    // Explictly check damage sources and flick the body around the screen
+    {
+        auto entityList = entityManager.CollisionList(Position(), Size(), DAMAGE_GROUP, Id());
+        auto outCenter = Position() + Size() / 2;
+
+        for (auto& otherId : entityList) {
+            auto other = entityManager.Entity(otherId);
+            
+            if (dynamic_cast<TExplosionEntity*>(other.get())) {
+                State_ = EState::Dead;
+
+                auto explosionCenter = other->Position() + other->Size() / 2;
+                auto diff = outCenter - explosionCenter;
+                if (diff.X) {
+                    Speed_.X += 500.0 / diff.X;
+                }
+                if (diff.Y) {
+                    Speed_.Y += 500.0 / diff.Y;
+                }
+            } else if (dynamic_cast<TSpikeEntity*>(other.get())) {
+                if (MovementPerTick(delta, Speed_.Y) < 1.0) {
+                    continue;
+                };
+
+                State_ = EState::Dead;
+                auto spike = dynamic_cast<TSpikeEntity*>(other.get());
+                spike->SetBloody(true);
+                
+                Speed_.X = 0;
+                if (Speed_.Y > 5) {
+                    Speed_.Y = 5;
+                }
+            }
         }
     }
     
@@ -785,19 +920,19 @@ void THero::Update(std::uint32_t delta) {
         FaceLeft_ = 1;
     } else if (Speed_.X > 0) {
         FaceLeft_ = 0;
-
     }
+
     // Perform movement and collision
     NGame::Vec2f resultSpeed = MovementPerTick(delta, Speed_);
     auto moveResult = MoveWithCondition(resultSpeed, Fraction_, [&](const NGame::Vec2i& position) {
-        auto collisionList = app->EntityManager().CollisionList(position, Size(), TERRAIN_GROUP, Id());
+        auto collisionList = entityManager.CollisionList(position, Size(), TERRAIN_GROUP, Id());
         if (collisionList.empty()) {
             return true;
         }
 
         // Check collision for planks
         for (auto& otherId : collisionList) {
-            auto other = app->EntityManager().Entity(otherId);
+            auto other = entityManager.Entity(otherId);
             if (dynamic_cast<TPlankEntity*>(other.get())) {
                 // Are we ignoring planks, because we are dropping down?
                 if (IgnorePlanks_) {
@@ -825,11 +960,26 @@ void THero::Update(std::uint32_t delta) {
     });
 
     Fraction_ = moveResult.first;
-    if (!moveResult.second.first) {
-        Speed_.X = 0;
-    }
-    if (!moveResult.second.second) {
-        Speed_.Y = 0;
+    if (State_ != EState::Dead) {
+        if (!moveResult.second.first) {
+            Speed_.X = 0;
+        }
+        if (!moveResult.second.second) {
+            // Fall damage
+            if (app->State().Variable("FallDamage").Bool() && (Position().Y - LastStablePosition_.Y > 40)) {
+                State_ = EState::Dead;
+            }
+
+            Speed_.Y = 0;
+        }
+    } else {
+        if (!moveResult.second.first) {
+            Speed_.X = Speed_.X * -0.5f;
+        }
+        if (!moveResult.second.second) {
+            Speed_.Y = Speed_.Y * -0.5f;
+            Speed_.X = Speed_.X * 0.8f;
+        }
     }
     
     // Set camera to track hero
@@ -855,14 +1005,19 @@ void THero::Draw() const {
     case EState::Fall: spriteIndex = 0; break;
     case EState::Climb: spriteIndex = 5; break;
     case EState::Hold: spriteIndex = 1; break;
+    case EState::Dead: spriteIndex = 4; break;
     }
 
     if (State_ == EState::Normal && Speed_.X != 0 && AlternateRun_) {
         spriteIndex = 3;
     }
 
-    spriteManager.Draw(hero, spriteIndex, Position() - NGame::Vec2i((16 - Size().X) / 2, 16 - Size().Y), {(FaceLeft_?-1.0f:1.0f), 1.0f});
-
+    if (State_ != EState::Dead) {
+        spriteManager.Draw(hero, spriteIndex, Position() - NGame::Vec2i((16 - Size().X) / 2, 16 - Size().Y), {(FaceLeft_?-1.0f:1.0f), 1.0f});
+    } else {
+        spriteManager.Draw(hero, spriteIndex, Position() - NGame::Vec2i((16 - Size().X) / 2, 16 - Size().Y - 3), {(FaceLeft_?-1.0f:1.0f), 1.0f});
+    }
+    
     renderManager.SetLayer(NGame::TRenderManager::Light);
     auto light = spriteManager.Get("Sprites/Light.txt");
     spriteManager.Draw(light, 0, Position() - (light->Frames[0].Size * 4 / 2), {4, 4});
@@ -894,4 +1049,55 @@ void TBackgroundTiler::Draw() const {
             spriteManager.Draw(Background_, 0, NGame::Vec2i(i * 16, j * 16) + cameraPosition - tileOffset);
         }
     }
+}
+
+TRubbleEntity::TRubbleEntity(NGame::TEntity::TId id) 
+    : NGame::TEntity(id) {
+    SetSize(8);
+    Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Stone.txt");
+    Alarm_.Set(0, 5000);
+}
+
+void TRubbleEntity::Update(std::uint32_t delta) {
+    auto& entityManager = NGame::TApp::Instance()->EntityManager();
+
+    Speed_.Y += MovementPerTick(delta, Gravity_);
+    NGame::Vec2f resultSpeed = MovementPerTick(delta, Speed_);
+    auto moveResult = MoveWithCondition(resultSpeed, Fraction_, [&](const NGame::Vec2i& position) {
+        auto collisionList = entityManager.IsPlaceEmpty(position, Size(), TERRAIN_GROUP, Id());
+        if (collisionList) {
+            return true;
+        }
+        return false;
+    });
+
+    if (!moveResult.second.first) {
+        Speed_.X = Speed_.X * -0.25f;
+    }
+    if (!moveResult.second.second) {
+        Speed_.Y = Speed_.Y * -0.25f;
+        Speed_.X = Speed_.X * 0.25;
+    }
+}
+
+void TRubbleEntity::Draw() const {
+    auto& renderManager = NGame::TApp::Instance()->RenderManager();
+    auto& spriteManager = NGame::TApp::Instance()->SpriteManager();
+
+    renderManager.SetLayer(NGame::TRenderManager::Foreground);
+    spriteManager.Draw(Sprite_, 0, Position());
+}
+
+void TRubbleEntity::Alarm(NGame::TAlarm::TId id) {
+    if (id == 0) {
+        Remove();
+    }
+}
+
+const NGame::Vec2f& TRubbleEntity::Speed() const {
+    return Speed_;
+}
+
+void TRubbleEntity::SetSpeed(const NGame::Vec2f& speed) {
+    Speed_ = speed;
 }

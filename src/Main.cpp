@@ -31,12 +31,13 @@ static void InitApp(void) {
     app->EntityManager().RegisterEntity<TFloatingTextEntity>("FloatingTextEntity");
     app->EntityManager().RegisterEntity<TBackgroundTiler>("BackgroundTiler");
     app->EntityManager().RegisterEntity<TRoomEntity>("RoomEntity");
+    app->EntityManager().RegisterEntity<TRubbleEntity>("RubbleEntity");
 
     app->EntityManager().MakeEntityByName("RoomEntity");
     app->EntityManager().MakeEntityByName("BackgroundTiler");
 
     auto h = app->EntityManager().MakeEntityByName("Hero");
-    h->SetPosition({0, -64});
+    h->SetPosition({0, -16});
     app->EntityManager().UpdateCollision(h);
 }
 
