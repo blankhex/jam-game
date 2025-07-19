@@ -16,8 +16,14 @@ public:
 
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+    void Destroy();
 
 protected:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+    
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -35,6 +41,9 @@ public:
     virtual void Draw() const override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -46,6 +55,9 @@ public:
     virtual void Draw() const override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -57,6 +69,9 @@ public:
     virtual void Draw() const override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -69,6 +84,9 @@ public:
     virtual void Alarm(NGame::TAlarm::TId id) override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -80,6 +98,9 @@ public:
     virtual void Draw() const override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -95,8 +116,13 @@ public:
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
     virtual void Alarm(NGame::TAlarm::TId id) override;
+    void Explode();
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
     bool AlternateBlink_ = false;
     std::size_t Remaining_ = 0;
     EState State_ = Dormant;
@@ -113,6 +139,10 @@ public:
     virtual void Draw() const override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -126,6 +156,10 @@ public:
     void SetBloody(bool value);
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
     bool IsBloody_ = false;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
@@ -138,6 +172,10 @@ public:
     virtual void Draw() const override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
 };
 
@@ -164,6 +202,10 @@ public:
     virtual void Alarm(NGame::TAlarm::TId id) override;
 
 private:
+NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
     std::string Text_;
     NGame::TFontManager::EColor Color_;
 };
@@ -259,6 +301,10 @@ public:
     virtual void Alarm(NGame::TAlarm::TId id) override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
     bool KeysPressed_[static_cast<int>(EKeys::MaxSentinel)] = {};
     bool KeysHeld_[static_cast<int>(EKeys::MaxSentinel)] = {};
     bool FaceLeft_ = false;
@@ -279,6 +325,10 @@ public:
     virtual void Draw() const override;
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
     std::shared_ptr<NGame::TSpriteManager::TSprite> Background_;
 };
 
@@ -294,6 +344,10 @@ public:
     void SetSpeed(const NGame::Vec2f& speed);
 
 private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+    
     const float Gravity_ = 500;
     std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
     NGame::Vec2f Speed_ = NGame::Vec2f(0.0, 0.0);

@@ -9,47 +9,41 @@
 #define ROOM_HEIGHT 6
 
 TDirtEntity::TDirtEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(TERRAIN_GROUP);
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Wall.txt");
 }
 
 void TDirtEntity::Update(std::uint32_t delta) {
-    auto entityList = NGame::TApp::Instance()->EntityManager().CollisionList(Position(), Size(), DAMAGE_GROUP, Id());
-
-    for (auto& otherId : entityList) {
-        auto other = NGame::TApp::Instance()->EntityManager().Entity(otherId);
-
-        if (dynamic_cast<TExplosionEntity*>(other.get())) {
-            auto explosionCenter = other->Position() + other->Size() / 2;
-            auto ourCenter = Position() + Size() / 2;
-
-            float distance = (ourCenter - explosionCenter).Length();
-            if (distance <= other->Size().X) {
-                Remove();
-
-                std::size_t rockCount = rand() % 3 + 1;
-                while (rockCount--) {
-                    NGame::Vec2f speedVector;
-
-                    auto rockEntity = NGame::TApp::Instance()->EntityManager().MakeEntity<TRubbleEntity>();
-                    rockEntity->SetPosition(Position());
-                    speedVector.X = rand() % 100 - 50;
-                    speedVector.Y = rand() % 50;
-                    speedVector = speedVector.Normilize() * 100;
-                    dynamic_cast<TRubbleEntity*>(rockEntity.get())->SetSpeed(speedVector);
-                }
-
-                break;
-            }
-        }
-    }
+    
 }
 
 void TDirtEntity::Draw() const {
     NGame::TApp::Instance()->RenderManager().SetLayer(NGame::TRenderManager::Background);
     NGame::TApp::Instance()->SpriteManager().Draw(Sprite_, 1, Position());
+}
+
+void TDirtEntity::Alarm(NGame::TAlarm::TId id) {
+}
+
+void TDirtEntity::Destroy() {
+    std::size_t rockCount = rand() % 3 + 1;
+    while (rockCount--) {
+        NGame::Vec2f speedVector;
+
+        auto rockEntity = NGame::TApp::Instance()->EntityManager().MakeEntity<TRubbleEntity>();
+        rockEntity->SetPosition(Position());
+        speedVector.X = rand() % 100 - 50;
+        speedVector.Y = rand() % 50;
+        speedVector = speedVector.Normilize() * 100;
+        dynamic_cast<TRubbleEntity*>(rockEntity.get())->SetSpeed(speedVector);
+    }
+
+    Remove();
 }
 
 TGrassEntity::TGrassEntity(NGame::TEntity::TId id)
@@ -62,7 +56,10 @@ void TGrassEntity::Draw() const {
 }
 
 TPlankEntity::TPlankEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(TERRAIN_GROUP);
     SetSize({16, 2});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Plank.txt");
@@ -78,7 +75,10 @@ void TPlankEntity::Draw() const {
 }
 
 TStoneEntity::TStoneEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(TERRAIN_GROUP);
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Wall.txt");
@@ -94,7 +94,10 @@ void TStoneEntity::Draw() const {
 }
 
 TLadderEntity::TLadderEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(LADDER_GROUP);
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Ladder.txt");
@@ -114,7 +117,10 @@ void TLadderEntity::Draw() const {
 }
 
 TExplosionEntity::TExplosionEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(DAMAGE_GROUP);
     SetSize({64, 64});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Light.txt");
@@ -131,12 +137,32 @@ void TExplosionEntity::Draw() const {
 
 void TExplosionEntity::Alarm(NGame::TAlarm::TId id) {
     if (id == 0) {
+        auto entityList = NGame::TApp::Instance()->EntityManager().CollisionList(Position(), Size(), TERRAIN_GROUP | DAMAGE_GROUP, Id());
+
+        for (auto& otherId : entityList) {
+            auto other = NGame::TApp::Instance()->EntityManager().Entity(otherId);
+            auto dirtCenter = other->Position() + other->Size() / 2;
+            auto ourCenter = Position() + Size() / 2;
+
+            float distance = (ourCenter - dirtCenter).Length();
+            if (distance <= Size().X) {
+                if (dynamic_cast<TDirtEntity*>(other.get())) {
+                    dynamic_cast<TDirtEntity*>(other.get())->Destroy();
+                } else if (dynamic_cast<TMineEntity*>(other.get())) {
+                    dynamic_cast<TMineEntity*>(other.get())->Explode();
+                }
+            }
+        }
+
         Remove();
     }
 }
 
 TKeyEntity::TKeyEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(ITEM_GROUP);
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Item.txt");
@@ -152,16 +178,20 @@ void TKeyEntity::Draw() const {
 }
 
 TMineEntity::TMineEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetSize({16, 16});
+    SetCollisionGroup(DAMAGE_GROUP);
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Mine.txt");
     Blinking_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Flash.txt");
 }
 
 void TMineEntity::Update(std::uint32_t delta) {
-    auto& entityManager = NGame::TApp::Instance()->EntityManager();
+    auto& entityManager = App_->EntityManager();
+    
     switch (State_) {
-
     case Dormant:
         if (!entityManager.IsPlaceEmpty(Position() + Size() / 2 - TriggerRadius_ / 2, TriggerRadius_, HERO_GROUP)) {
             Remaining_ = rand() % 5 + 5;
@@ -175,45 +205,27 @@ void TMineEntity::Update(std::uint32_t delta) {
 
     case Active:
         if (!Remaining_) {
-            auto explosion = entityManager.MakeEntity<TExplosionEntity>();
-            explosion->SetPosition(Position() + Size() / 2 - explosion->Size() / 2 + NGame::Vec2i{0, 4});
-            Remove();
+            Explode();
         }
         break;
     }
+}
 
-    // Chain detonation
-    auto entityList = NGame::TApp::Instance()->EntityManager().CollisionList(Position(), Size(), DAMAGE_GROUP, Id());
+void TMineEntity::Explode() {
+    auto& entityManager = App_->EntityManager();
 
-    for (auto& otherId : entityList) {
-        auto other = NGame::TApp::Instance()->EntityManager().Entity(otherId);
-
-        if (dynamic_cast<TExplosionEntity*>(other.get())) {
-            auto explosionCenter = other->Position() + other->Size() / 2;
-            auto ourCenter = Position() + Size() / 2;
-
-            float distance = (ourCenter - explosionCenter).Length();
-            if (distance <= other->Size().X) {
-                auto explosion = entityManager.MakeEntity<TExplosionEntity>();
-                explosion->SetPosition(Position() + Size() / 2 - explosion->Size() / 2 + NGame::Vec2i{0, 4});
-                Remove();
-                break;
-            }
-        }
-    }
-    
+    auto explosion = entityManager.MakeEntity<TExplosionEntity>();
+    explosion->SetPosition(Position() + Size() / 2 - explosion->Size() / 2 + NGame::Vec2i{0, 4});
+    Remove();
 }
 
 void TMineEntity::Draw() const {
-    auto& renderManager = NGame::TApp::Instance()->RenderManager();
-    auto& spriteManager = NGame::TApp::Instance()->SpriteManager();
-
-    renderManager.SetLayer(NGame::TRenderManager::Background);
-    spriteManager.Draw(Sprite_, 0, Position());
+    RenderManager_.SetLayer(NGame::TRenderManager::Background);
+    SpriteManager_.Draw(Sprite_, 0, Position());
 
     if (State_ == EState::Active) {
-        renderManager.SetLayer(NGame::TRenderManager::EffectsGlow);
-        spriteManager.Draw(Blinking_, AlternateBlink_, Position() + (Size() * NGame::Vec2f(0.5f, 0.75f)) - Blinking_->Frames[0].Size, {2, 2});
+        RenderManager_.SetLayer(NGame::TRenderManager::EffectsGlow);
+        SpriteManager_.Draw(Blinking_, AlternateBlink_, Position() + (Size() * NGame::Vec2f(0.5f, 0.75f)) - Blinking_->Frames[0].Size, {2, 2});
     }
 }
 
@@ -227,7 +239,10 @@ void TMineEntity::Alarm(NGame::TAlarm::TId id) {
 }
 
 TCurseEntity::TCurseEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(ITEM_GROUP);
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Item.txt");
@@ -243,7 +258,10 @@ void TCurseEntity::Draw() const {
 }
 
 TSpikeEntity::TSpikeEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(DAMAGE_GROUP);
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Spike.txt");
@@ -267,7 +285,10 @@ void TSpikeEntity::SetBloody(bool value) {
 }
 
 TEntranceEntity::TEntranceEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetCollisionGroup(PASSAGE_GROUP);
     SetSize({16, 16});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Passage.txt");
@@ -290,7 +311,6 @@ TExitEntity::TExitEntity(NGame::TEntity::TId id)
 }
 
 void TExitEntity::Update(std::uint32_t delta) {
-
 }
 
 void TExitEntity::Draw() const {
@@ -299,7 +319,10 @@ void TExitEntity::Draw() const {
 }
 
 TFloatingTextEntity::TFloatingTextEntity(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     Alarm_.Set(0, 1000);
 }
 
@@ -316,10 +339,9 @@ void TFloatingTextEntity::Update(std::uint32_t delta) {
 }
 
 void TFloatingTextEntity::Draw() const {
-    auto& renderManager = NGame::TApp::Instance()->RenderManager();
-    auto& fontManager = NGame::TApp::Instance()->FontManager();
+    auto& fontManager = App_->FontManager();
 
-    renderManager.SetLayer(NGame::TRenderManager::AfterLightEffects);
+    RenderManager_.SetLayer(NGame::TRenderManager::AfterLightEffects);
     fontManager.Draw(Color_, Position(), Text_);
 }
 
@@ -620,7 +642,10 @@ void TRoomEntity::SelectRoom(int type, TRoom& room) {
 
 
 THero::THero(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetSize(NGame::Vec2i(4, 12));
     SetPosition(NGame::Vec2i(0, 0));
     SetCollisionGroup(HERO_GROUP);
@@ -706,8 +731,7 @@ void THero::Input(SDL_Event* event) {
 
 
 void THero::Update(std::uint32_t delta) {
-    auto app = NGame::TApp::Instance();
-    auto& entityManager = app->EntityManager();
+    auto& entityManager = App_->EntityManager();
 
     for (bool repeatState = true; repeatState; ) {
         repeatState = false;
@@ -966,7 +990,7 @@ void THero::Update(std::uint32_t delta) {
         }
         if (!moveResult.second.second) {
             // Fall damage
-            if (app->State().Variable("FallDamage").Bool() && (Position().Y - LastStablePosition_.Y > 40)) {
+            if (App_->State().Variable("FallDamage").Bool() && (Position().Y - LastStablePosition_.Y > 40)) {
                 State_ = EState::Dead;
             }
 
@@ -983,7 +1007,7 @@ void THero::Update(std::uint32_t delta) {
     }
     
     // Set camera to track hero
-    app->RenderManager().SetCamera(Position() - app->RenderManager().Size() / 2);
+    RenderManager_.SetCamera(Position() - App_->RenderManager().Size() / 2);
 
     // Reset pressed keys
     IgnorePlanks_ = false;
@@ -991,11 +1015,8 @@ void THero::Update(std::uint32_t delta) {
 }
 
 void THero::Draw() const {
-    auto& renderManager = NGame::TApp::Instance()->RenderManager();
-    auto& spriteManager = NGame::TApp::Instance()->SpriteManager();
-
-    renderManager.SetLayer(NGame::TRenderManager::Foreground);
-    auto hero = spriteManager.Get("Sprites/Hero.txt");
+    RenderManager_.SetLayer(NGame::TRenderManager::Foreground);
+    auto hero = SpriteManager_.Get("Sprites/Hero.txt");
     int spriteIndex = 0;
 
 
@@ -1013,14 +1034,14 @@ void THero::Draw() const {
     }
 
     if (State_ != EState::Dead) {
-        spriteManager.Draw(hero, spriteIndex, Position() - NGame::Vec2i((16 - Size().X) / 2, 16 - Size().Y), {(FaceLeft_?-1.0f:1.0f), 1.0f});
+        SpriteManager_.Draw(hero, spriteIndex, Position() - NGame::Vec2i((16 - Size().X) / 2, 16 - Size().Y), {(FaceLeft_?-1.0f:1.0f), 1.0f});
     } else {
-        spriteManager.Draw(hero, spriteIndex, Position() - NGame::Vec2i((16 - Size().X) / 2, 16 - Size().Y - 3), {(FaceLeft_?-1.0f:1.0f), 1.0f});
+        SpriteManager_.Draw(hero, spriteIndex, Position() - NGame::Vec2i((16 - Size().X) / 2, 16 - Size().Y - 3), {(FaceLeft_?-1.0f:1.0f), 1.0f});
     }
     
-    renderManager.SetLayer(NGame::TRenderManager::Light);
-    auto light = spriteManager.Get("Sprites/Light.txt");
-    spriteManager.Draw(light, 0, Position() - (light->Frames[0].Size * 4 / 2), {4, 4});
+    RenderManager_.SetLayer(NGame::TRenderManager::Light);
+    auto light = SpriteManager_.Get("Sprites/Light.txt");
+    SpriteManager_.Draw(light, 0, Position() - (light->Frames[0].Size * 4 / 2), {4, 4});
 }
 
 void THero::Alarm(NGame::TAlarm::TId id) {
@@ -1030,36 +1051,38 @@ void THero::Alarm(NGame::TAlarm::TId id) {
 }
 
 TBackgroundTiler::TBackgroundTiler(NGame::TEntity::TId id)
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     Background_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Wall.txt");
 }
 void TBackgroundTiler::Draw() const {
-    auto& renderManager = NGame::TApp::Instance()->RenderManager();
-    auto& spriteManager = NGame::TApp::Instance()->SpriteManager();
-    
-    auto cameraPosition = renderManager.Camera();
+    auto cameraPosition = RenderManager_.Camera();
     auto tileOffset = cameraPosition;
     tileOffset.X %= 16;
     tileOffset.Y %= 16;
 
-
-    renderManager.SetLayer(NGame::TRenderManager::Tile);
+    RenderManager_.SetLayer(NGame::TRenderManager::Tile);
     for (int i = -1; i <= 320 / 16; ++i) {
         for (int j = -1; j <= 240 / 16; ++j) {
-            spriteManager.Draw(Background_, 0, NGame::Vec2i(i * 16, j * 16) + cameraPosition - tileOffset);
+            SpriteManager_.Draw(Background_, 0, NGame::Vec2i(i * 16, j * 16) + cameraPosition - tileOffset);
         }
     }
 }
 
 TRubbleEntity::TRubbleEntity(NGame::TEntity::TId id) 
-    : NGame::TEntity(id) {
+    : NGame::TEntity(id)
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
     SetSize(8);
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Stone.txt");
     Alarm_.Set(0, 5000);
 }
 
 void TRubbleEntity::Update(std::uint32_t delta) {
-    auto& entityManager = NGame::TApp::Instance()->EntityManager();
+    auto& entityManager = App_->EntityManager();
 
     Speed_.Y += MovementPerTick(delta, Gravity_);
     NGame::Vec2f resultSpeed = MovementPerTick(delta, Speed_);
@@ -1081,11 +1104,8 @@ void TRubbleEntity::Update(std::uint32_t delta) {
 }
 
 void TRubbleEntity::Draw() const {
-    auto& renderManager = NGame::TApp::Instance()->RenderManager();
-    auto& spriteManager = NGame::TApp::Instance()->SpriteManager();
-
-    renderManager.SetLayer(NGame::TRenderManager::Foreground);
-    spriteManager.Draw(Sprite_, 0, Position());
+    RenderManager_.SetLayer(NGame::TRenderManager::Foreground);
+    SpriteManager_.Draw(Sprite_, 0, Position());
 }
 
 void TRubbleEntity::Alarm(NGame::TAlarm::TId id) {
