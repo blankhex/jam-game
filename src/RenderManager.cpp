@@ -15,7 +15,7 @@ TRenderManager::TRenderManager(TSurfaceManager& surfaceManager, int width, int h
         throw std::runtime_error("Can't create window");
     }
 
-    Renderer_ = SDL_CreateRenderer(Window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    Renderer_ = SDL_CreateRenderer(Window_, -1, SDL_RENDERER_ACCELERATED);
     if (!Renderer_) {
         SDL_DestroyWindow(Window_);
         throw std::runtime_error("Can't create renderer");
