@@ -16,6 +16,7 @@ public:
     std::unordered_set<TEntity::TId> Query(const Vec2i& position, const Vec2i& size) const;
     void Remove(const Vec2i& position, const Vec2i& size, TEntity::TId id);
     void Add(const Vec2i& position, const Vec2i& size, TEntity::TId id);
+    void Reset();
 
 private:
     using TId = size_t;

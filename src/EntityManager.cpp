@@ -14,6 +14,7 @@ void TEntityManager::Run() {
     if (PendingReset_) {
         PendingReset_ = false;
         Entities_.clear();
+        Gridmap_.Reset();
         for (const auto& name : DeferredEntities_) {
             MakeEntityByName(name);
         }

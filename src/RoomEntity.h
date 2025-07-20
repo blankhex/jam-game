@@ -316,7 +316,7 @@ private:
     NGame::Vec2f Fraction_ = NGame::Vec2f(0.0, 0.0);
     NGame::Vec2i ExitPosition_;
     
-
+    bool DisplayEnd_ = false;
     bool WhiteFade_ = false;
     std::size_t FadeAmount_ = 0;
 };
@@ -361,6 +361,7 @@ class TMainMenu : public NGame::TEntity {
 public:
     TMainMenu(NGame::TEntity::TId id);
 
+    virtual void Input(SDL_Event* event) override;
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
     virtual void Alarm(NGame::TAlarm::TId id) override;
@@ -375,6 +376,7 @@ class TEulaMenu : public NGame::TEntity {
 public:
     TEulaMenu(NGame::TEntity::TId id);
 
+    virtual void Input(SDL_Event* event) override;
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
     virtual void Alarm(NGame::TAlarm::TId id) override;
@@ -389,6 +391,7 @@ class TIntroMenu : public NGame::TEntity {
 public:
     TIntroMenu(NGame::TEntity::TId id);
 
+    virtual void Input(SDL_Event* event) override;
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
     virtual void Alarm(NGame::TAlarm::TId id) override;
@@ -403,6 +406,7 @@ class TOutroMenu : public NGame::TEntity {
 public:
     TOutroMenu(NGame::TEntity::TId id);
 
+    virtual void Input(SDL_Event* event) override;
     virtual void Update(std::uint32_t delta) override;
     virtual void Draw() const override;
     virtual void Alarm(NGame::TAlarm::TId id) override;
@@ -427,4 +431,28 @@ private:
     NGame::TApp* App_;    
     NGame::TSpriteManager& SpriteManager_;
     NGame::TRenderManager& RenderManager_;
+};
+
+class TGrenadeEntity : public NGame::TEntity {
+public:
+    TGrenadeEntity(NGame::TEntity::TId id);
+
+    virtual void Update(std::uint32_t delta) override;
+    virtual void Draw() const override;
+    virtual void Alarm(NGame::TAlarm::TId id) override;
+
+    void Explode();
+    const NGame::Vec2f& Speed() const;
+    void SetSpeed(const NGame::Vec2f& speed);
+
+private:
+    NGame::TApp* App_;    
+    NGame::TSpriteManager& SpriteManager_;
+    NGame::TRenderManager& RenderManager_;
+
+    const float Gravity_ = 500;
+    std::shared_ptr<NGame::TSpriteManager::TSprite> Sprite_;
+    NGame::Vec2f Speed_ = NGame::Vec2f(0.0, 0.0);
+    NGame::Vec2f Fraction_ = NGame::Vec2f(0.0, 0.0);
+    bool AlternateBlink_ = false;
 };

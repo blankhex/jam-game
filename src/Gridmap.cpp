@@ -51,6 +51,12 @@ void TGridmap::Add(const Vec2i& position, const Vec2i& size, TEntity::TId id) {
     }
 }
 
+void TGridmap::Reset() {
+    for (auto& cell : Grid_) {
+        cell.clear();
+    }
+}
+
 TGridmap::TId TGridmap::GridId(const Vec2i& point) const {
     return std::hash<Vec2i>{}(point) % Grid_.size();
 }

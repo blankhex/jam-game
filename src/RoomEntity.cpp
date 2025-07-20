@@ -145,6 +145,8 @@ void TExplosionEntity::Alarm(NGame::TAlarm::TId id) {
                     dynamic_cast<TDirtEntity*>(other.get())->Destroy();
                 } else if (dynamic_cast<TMineEntity*>(other.get())) {
                     dynamic_cast<TMineEntity*>(other.get())->Explode();
+                } else if (dynamic_cast<TSpikeEntity*>(other.get())) {
+                    other->Remove();
                 }
             }
         }
@@ -761,7 +763,6 @@ void THero::Input(SDL_Event* event) {
 }
 
 
-
 void THero::Update(std::uint32_t delta) {
     auto& entityManager = App_->EntityManager();
 
@@ -780,6 +781,29 @@ void THero::Update(std::uint32_t delta) {
                 Speed_.X = -100;
             }
             if (KeysPressed_[static_cast<int>(EKeys::X)]) {
+                auto entity = entityManager.MakeEntityByName("GrenadeEntity");
+                auto targetEntity = dynamic_cast<TGrenadeEntity*>(entity.get());
+
+                targetEntity->SetPosition(Position());
+                if (FaceLeft_) {
+                    targetEntity->SetSpeed({-300, 0});
+                } else {
+                    targetEntity->SetSpeed({300, 0});
+                }
+                entityManager.UpdateCollision(entity);
+            }
+            if (KeysPressed_[static_cast<int>(EKeys::Up)]) {
+                auto otherIds = entityManager.CollisionList(Position(), Size(), PASSAGE_GROUP, Id());
+
+                for (auto otherId : otherIds) {
+                    auto other = entityManager.Entity(otherId);
+                    if (dynamic_cast<TExitEntity*>(other.get())) {
+                        entityManager.AddToDeferred("EulaMenu");
+                        entityManager.Reset();
+                    }
+                }
+            }
+            if (KeysPressed_[static_cast<int>(EKeys::C)]) {
                 auto entity = entityManager.MakeEntityByName("FloatingTextEntity");
                 auto targetEntity = dynamic_cast<TFloatingTextEntity*>(entity.get());
                 targetEntity->SetText("You died, LMAO");
@@ -931,6 +955,19 @@ void THero::Update(std::uint32_t delta) {
 
         case EState::Dead:
             Speed_.Y += MovementPerTick(delta, Gravity_);
+
+            if (KeysPressed_[static_cast<int>(EKeys::Z)] ||
+                KeysPressed_[static_cast<int>(EKeys::X)] ||
+                KeysPressed_[static_cast<int>(EKeys::C)] ||
+                KeysPressed_[static_cast<int>(EKeys::Left)] ||
+                KeysPressed_[static_cast<int>(EKeys::Right)] ||
+                KeysPressed_[static_cast<int>(EKeys::Up)] || 
+                KeysPressed_[static_cast<int>(EKeys::Down)]) { 
+                if (DisplayEnd_) {
+                    entityManager.AddToDeferred("MainMenu");
+                    entityManager.Reset();
+                }
+            }
             break;
         }   
     }
@@ -939,6 +976,7 @@ void THero::Update(std::uint32_t delta) {
     {
         auto entityList = entityManager.CollisionList(Position(), Size(), DAMAGE_GROUP, Id());
         auto outCenter = Position() + Size() / 2;
+        EState previousState = State_;
 
         for (auto& otherId : entityList) {
             auto other = entityManager.Entity(otherId);
@@ -955,7 +993,7 @@ void THero::Update(std::uint32_t delta) {
                     Speed_.Y += 500.0 / diff.Y;
                 }
             } else if (dynamic_cast<TSpikeEntity*>(other.get())) {
-                if (MovementPerTick(delta, Speed_.Y) < 1.0) {
+                if (MovementPerTick(delta, Speed_.Y) < 2.0) {
                     continue;
                 };
 
@@ -967,6 +1005,12 @@ void THero::Update(std::uint32_t delta) {
                 if (Speed_.Y > 5) {
                     Speed_.Y = 5;
                 }
+            }
+        }
+
+        if (previousState != State_) {
+            if (!Alarm_.IsSet(1)) {
+                Alarm_.Set(1, 3000);
             }
         }
     }
@@ -1111,6 +1155,11 @@ void THero::Draw() const {
         }
     }
 
+    if (DisplayEnd_) {
+        RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+        App_->FontManager().Draw(NGame::TFontManager::Red, {}, "You are dead! Press X");
+    }
+
     if (FadeAmount_) {
         RenderManager_.SetLayer(NGame::TRenderManager::Interface);
         if (WhiteFade_) {
@@ -1125,6 +1174,8 @@ void THero::Draw() const {
 void THero::Alarm(NGame::TAlarm::TId id) {
     if (id == 0) {
         AlternateRun_ = !AlternateRun_;
+    } else if (id == 1) {
+        DisplayEnd_ = true;
     }
 }
 
@@ -1210,7 +1261,18 @@ TMainMenu::TMainMenu(NGame::TEntity::TId id)
     , App_(NGame::TApp::Instance())
     , RenderManager_(App_->RenderManager())
     , SpriteManager_(App_->SpriteManager()) {
+    RenderManager_.EnableLight(false);
+}
 
+void TMainMenu::Input(SDL_Event* event) {
+    switch (event->type) {
+    case SDL_KEYDOWN:
+        if (event->key.keysym.sym == 'x') {
+            App_->EntityManager().AddToDeferred("RoomEntity");
+            App_->EntityManager().Reset();
+        }
+        break;
+    }
 }
 
 void TMainMenu::Update(std::uint32_t delta) {
@@ -1218,20 +1280,31 @@ void TMainMenu::Update(std::uint32_t delta) {
 }
 
 void TMainMenu::Draw() const {
-
+    RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {}, "Press X to start a game");
 }
 
 void TMainMenu::Alarm(NGame::TAlarm::TId id) {
 
 }
 
-
 TEulaMenu::TEulaMenu(NGame::TEntity::TId id)
     : NGame::TEntity(id) 
     , App_(NGame::TApp::Instance())
     , RenderManager_(App_->RenderManager())
     , SpriteManager_(App_->SpriteManager()) {
+    RenderManager_.EnableLight(false);
+}
 
+void TEulaMenu::Input(SDL_Event* event) {
+    switch (event->type) {
+    case SDL_KEYDOWN:
+        if (event->key.keysym.sym == 'x') {
+            App_->EntityManager().AddToDeferred("RoomEntity");
+            App_->EntityManager().Reset();
+        }
+        break;
+    }
 }
 
 void TEulaMenu::Update(std::uint32_t delta) {
@@ -1239,7 +1312,8 @@ void TEulaMenu::Update(std::uint32_t delta) {
 }
 
 void TEulaMenu::Draw() const {
-
+    RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {}, "Press X to gain debuff and continue");
 }
 
 void TEulaMenu::Alarm(NGame::TAlarm::TId id) {
@@ -1251,7 +1325,18 @@ TIntroMenu::TIntroMenu(NGame::TEntity::TId id)
     , App_(NGame::TApp::Instance())
     , RenderManager_(App_->RenderManager())
     , SpriteManager_(App_->SpriteManager()) {
+    RenderManager_.EnableLight(false);
+}
 
+void TIntroMenu::Input(SDL_Event* event) {
+    switch (event->type) {
+    case SDL_KEYDOWN:
+        if (event->key.keysym.sym == 'x') {
+            App_->EntityManager().AddToDeferred("MainMenu");
+            App_->EntityManager().Reset();
+        }
+        break;
+    }
 }
 
 void TIntroMenu::Update(std::uint32_t delta) {
@@ -1259,7 +1344,8 @@ void TIntroMenu::Update(std::uint32_t delta) {
 }
 
 void TIntroMenu::Draw() const {
-
+    RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {}, "Made by an idiot. Press X to continue");
 }
 
 void TIntroMenu::Alarm(NGame::TAlarm::TId id) {
@@ -1271,7 +1357,18 @@ TOutroMenu::TOutroMenu(NGame::TEntity::TId id)
     , App_(NGame::TApp::Instance())
     , RenderManager_(App_->RenderManager())
     , SpriteManager_(App_->SpriteManager()) {
+    RenderManager_.EnableLight(false);
+}
 
+void TOutroMenu::Input(SDL_Event* event) {
+    switch (event->type) {
+    case SDL_KEYDOWN:
+        if (event->key.keysym.sym == 'x') {
+            App_->EntityManager().AddToDeferred("MainMenu");
+            App_->EntityManager().Reset();
+        }
+        break;
+    }
 }
 
 void TOutroMenu::Update(std::uint32_t delta) {
@@ -1279,7 +1376,8 @@ void TOutroMenu::Update(std::uint32_t delta) {
 }
 
 void TOutroMenu::Draw() const {
-
+    RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {}, "Thanks for playing the game");
 }
 
 void TOutroMenu::Alarm(NGame::TAlarm::TId id) {
@@ -1312,4 +1410,66 @@ void TTorchEntity::Draw() const {
 
 void TTorchEntity::Alarm(NGame::TAlarm::TId id) {
 
+}
+
+TGrenadeEntity::TGrenadeEntity(NGame::TEntity::TId id) 
+    : NGame::TEntity(id) 
+    , App_(NGame::TApp::Instance())
+    , RenderManager_(App_->RenderManager())
+    , SpriteManager_(App_->SpriteManager()) {
+    SetSize(9);
+    Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Grenade.txt");
+    Alarm_.Set(0, 3000 + rand() % 1000);
+    Alarm_.Set(1, 100);
+}
+
+void TGrenadeEntity::Update(std::uint32_t delta) {
+    auto& entityManager = App_->EntityManager();
+
+    Speed_.Y += MovementPerTick(delta, Gravity_);
+    NGame::Vec2f resultSpeed = MovementPerTick(delta, Speed_);
+    auto moveResult = MoveWithCondition(resultSpeed, Fraction_, [&](const NGame::Vec2i& position) {
+        auto collisionList = entityManager.IsPlaceEmpty(position, Size(), TERRAIN_GROUP, Id());
+        if (collisionList) {
+            return true;
+        }
+        return false;
+    });
+
+    if (!moveResult.second.first) {
+        Speed_.X = Speed_.X * -0.25f;
+    }
+    if (!moveResult.second.second) {
+        Speed_.Y = Speed_.Y * -0.25f;
+        Speed_.X = Speed_.X * 0.25;
+    }
+}
+
+void TGrenadeEntity::Draw() const {
+    RenderManager_.SetLayer(NGame::TRenderManager::Foreground);
+    SpriteManager_.Draw(Sprite_, AlternateBlink_, Position());
+}
+
+void TGrenadeEntity::Alarm(NGame::TAlarm::TId id) {
+    if (id == 0) {
+        Explode();
+    } else if (id == 1) {
+        AlternateBlink_ = !AlternateBlink_;
+    }
+}
+
+void TGrenadeEntity::Explode() {
+    auto& entityManager = App_->EntityManager();
+
+    auto explosion = entityManager.MakeEntity<TExplosionEntity>();
+    explosion->SetPosition(Position() + Size() / 2 - explosion->Size() / 2 + NGame::Vec2i{0, 4});
+    Remove();
+}
+
+const NGame::Vec2f& TGrenadeEntity::Speed() const {
+    return Speed_;
+}
+
+void TGrenadeEntity::SetSpeed(const NGame::Vec2f& speed) {
+    Speed_ = speed;
 }

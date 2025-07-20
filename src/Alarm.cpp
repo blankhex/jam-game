@@ -57,4 +57,18 @@ bool TAlarm::Next(TId& id) {
     return true;
 }
 
+bool TAlarm::IsSet(TId id) const {
+    auto it = Alarms_.find(id);
+
+    if (it == Alarms_.end()) {
+        return false;
+    }
+
+    if (!it->second.Target) {
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace NGame

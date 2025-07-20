@@ -37,8 +37,9 @@ static void InitApp(void) {
     app->EntityManager().RegisterEntity<TOutroMenu>("OutroMenu");
     app->EntityManager().RegisterEntity<TEulaMenu>("EulaMenu");
     app->EntityManager().RegisterEntity<TTorchEntity>("TorchEntity");
+    app->EntityManager().RegisterEntity<TGrenadeEntity>("GrenadeEntity");
 
-    app->EntityManager().AddToDeferred("RoomEntity");
+    app->EntityManager().AddToDeferred("IntroMenu");
     app->EntityManager().Reset();
 }
 

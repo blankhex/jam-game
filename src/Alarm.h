@@ -16,6 +16,7 @@ public:
     void Unset(TId id);
     void Update(std::uint32_t delta);
     bool Next(TId& id);
+    bool IsSet(TId id) const;
 
 private:
     struct TData {
