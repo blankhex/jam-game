@@ -2,6 +2,7 @@
 
 #include "Common.h"
 
+#include "AudioManager.h"
 #include "DigitManager.h"
 #include "EntityManager.h"
 #include "FileManager.h"
@@ -35,6 +36,7 @@ public:
     TSpriteManager& SpriteManager();
     TFontManager& FontManager();
     TDigitManager& DigitManager();
+    TAudioManager& AudioManager();
 
     const TFileManager& FileManager() const;
     const TRenderManager& RenderManager() const;
@@ -43,6 +45,7 @@ public:
     const TSpriteManager& SpriteManager() const;
     const TFontManager& FontManager() const;
     const TDigitManager& DigitManager() const;
+    const TAudioManager& AudioManager() const;
 
 private:
     TApp();
@@ -57,6 +60,7 @@ private:
     std::unique_ptr<TSpriteManager> SpriteManager_;
     std::unique_ptr<TFontManager> FontManager_;
     std::unique_ptr<TDigitManager> DigitManager_;
+    std::unique_ptr<TAudioManager> AudioManager_;
     TState State_;
 };
 

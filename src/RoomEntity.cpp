@@ -120,6 +120,8 @@ TExplosionEntity::TExplosionEntity(NGame::TEntity::TId id)
     SetSize({64, 64});
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Light.txt");
     Alarm_.Set(0, 50);
+
+    App_->AudioManager().Play("Audio/Explosion2.wav");
 }
 
 void TExplosionEntity::Update(std::uint32_t delta) {
@@ -191,10 +193,15 @@ void TMineEntity::Update(std::uint32_t delta) {
     switch (State_) {
     case Dormant:
         if (!entityManager.IsPlaceEmpty(Position() + Size() / 2 - TriggerRadius_ / 2, TriggerRadius_, HERO_GROUP)) {
-            Remaining_ = rand() % 5 + 5;
-            if (!(Remaining_ % 2)) {
-                Remaining_ += 1;
+            if (App_->State().Variable("InstantMines").Bool()) {
+                Remaining_ = 1;
+            } else {
+                Remaining_ = rand() % 3 + 7;
+                if (!(Remaining_ % 2)) {
+                    Remaining_ += 1;
+                }
             }
+
             Alarm_.Set(0, 100);
             State_ = Active;
         }
@@ -231,6 +238,9 @@ void TMineEntity::Alarm(NGame::TAlarm::TId id) {
         AlternateBlink_ = !AlternateBlink_;
         if (Remaining_) {
             --Remaining_;
+        }
+        if (AlternateBlink_) {
+            App_->AudioManager().Play("Audio/Select.wav");
         }
     }
 }
@@ -671,8 +681,14 @@ THero::THero(NGame::TEntity::TId id)
     SetSize(NGame::Vec2i(4, 12));
     SetPosition(NGame::Vec2i(0, 0));
     SetCollisionGroup(HERO_GROUP);
-    NGame::TApp::Instance()->RenderManager().EnableLight(true);
-    NGame::TApp::Instance()->RenderManager().SetDefaultLightColor(0, 0, 0);
+
+    if (App_->State().Variable("DarkLevel").Bool()) {
+        NGame::TApp::Instance()->RenderManager().EnableLight(true);
+        NGame::TApp::Instance()->RenderManager().SetDefaultLightColor(0, 0, 0);
+    } else {
+        NGame::TApp::Instance()->RenderManager().EnableLight(false);
+        NGame::TApp::Instance()->RenderManager().SetDefaultLightColor(0, 0, 0);
+    }
 
     Alarm_.Set(0, 100);
 
@@ -687,6 +703,9 @@ THero::THero(NGame::TEntity::TId id)
             break;
         }
     }
+
+    RemainingTime_ = App_->State().Variable("Time").Double();
+    Grenades_ = App_->State().Variable("Grenades").Int();
 }
 
 void THero::Input(SDL_Event* event) {
@@ -781,16 +800,19 @@ void THero::Update(std::uint32_t delta) {
                 Speed_.X = -100;
             }
             if (KeysPressed_[static_cast<int>(EKeys::X)]) {
-                auto entity = entityManager.MakeEntityByName("GrenadeEntity");
-                auto targetEntity = dynamic_cast<TGrenadeEntity*>(entity.get());
+                if (Grenades_) {
+                    Grenades_--;
+                    auto entity = entityManager.MakeEntityByName("GrenadeEntity");
+                    auto targetEntity = dynamic_cast<TGrenadeEntity*>(entity.get());
 
-                targetEntity->SetPosition(Position());
-                if (FaceLeft_) {
-                    targetEntity->SetSpeed({-300, 0});
-                } else {
-                    targetEntity->SetSpeed({300, 0});
+                    targetEntity->SetPosition(Position());
+                    if (FaceLeft_) {
+                        targetEntity->SetSpeed({-300, 0});
+                    } else {
+                        targetEntity->SetSpeed({300, 0});
+                    }
+                    entityManager.UpdateCollision(entity);
                 }
-                entityManager.UpdateCollision(entity);
             }
             if (KeysPressed_[static_cast<int>(EKeys::Up)]) {
                 auto otherIds = entityManager.CollisionList(Position(), Size(), PASSAGE_GROUP, Id());
@@ -798,17 +820,12 @@ void THero::Update(std::uint32_t delta) {
                 for (auto otherId : otherIds) {
                     auto other = entityManager.Entity(otherId);
                     if (dynamic_cast<TExitEntity*>(other.get())) {
+                        App_->State().Variable("Time").SetDouble(RemainingTime_);
+                        App_->State().Variable("Grenades").SetInt(Grenades_);
                         entityManager.AddToDeferred("EulaMenu");
                         entityManager.Reset();
                     }
                 }
-            }
-            if (KeysPressed_[static_cast<int>(EKeys::C)]) {
-                auto entity = entityManager.MakeEntityByName("FloatingTextEntity");
-                auto targetEntity = dynamic_cast<TFloatingTextEntity*>(entity.get());
-                targetEntity->SetText("You died, LMAO");
-                targetEntity->SetColor(NGame::TFontManager::Red);
-                targetEntity->SetPosition(Position());
             }
 
             if (!entityManager.IsPlaceEmpty(Position(), Size(), LADDER_GROUP)) {
@@ -829,6 +846,7 @@ void THero::Update(std::uint32_t delta) {
                     if (KeysPressed_[static_cast<int>(EKeys::Z)]) {
                         Speed_.Y = -std::sqrt(2 * Gravity_ * (16 + (16 - Size().Y)));
                         State_ = EState::Jump;
+                        App_->AudioManager().Play("Audio/jump.wav");
                         continue;
                     }
                 }
@@ -972,6 +990,18 @@ void THero::Update(std::uint32_t delta) {
         }   
     }
 
+    if (State_ != EState::Dead) {
+        RemainingTime_ -= delta;
+        if (RemainingTime_ < 0) {
+            RemainingTime_ = 0;
+            App_->AudioManager().Play("Audio/Laser.wav");
+            State_ = EState::Dead;
+            if (!Alarm_.IsSet(1)) {
+                Alarm_.Set(1, 3000);
+            }
+        }
+    }
+
     // Explictly check damage sources and flick the body around the screen
     {
         auto entityList = entityManager.CollisionList(Position(), Size(), DAMAGE_GROUP, Id());
@@ -1009,6 +1039,7 @@ void THero::Update(std::uint32_t delta) {
         }
 
         if (previousState != State_) {
+            App_->AudioManager().Play("Audio/Laser.wav");
             if (!Alarm_.IsSet(1)) {
                 Alarm_.Set(1, 3000);
             }
@@ -1067,7 +1098,11 @@ void THero::Update(std::uint32_t delta) {
         if (!moveResult.second.second) {
             // Fall damage
             if (App_->State().Variable("FallDamage").Bool() && (Position().Y - LastStablePosition_.Y > 40)) {
+                App_->AudioManager().Play("Audio/Laser.wav");
                 State_ = EState::Dead;
+                if (!Alarm_.IsSet(1)) {
+                    Alarm_.Set(1, 3000);
+                }
             }
 
             Speed_.Y = 0;
@@ -1123,6 +1158,16 @@ void THero::Draw() const {
     auto light = SpriteManager_.Get("Sprites/Light.txt");
     SpriteManager_.Draw(light, 0, Position() - (light->Frames[0].Size * 4 / 2), {4, 4});
 
+    RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+    RenderManager_.SetColor(0, 0, 0, 128);
+    RenderManager_.DrawRect({0, 0}, {320, 16}, true);
+    App_->DigitManager().Draw({320 - 48 - 2, 2}, RemainingTime_, 6, 3);
+
+    auto itemSprite = SpriteManager_.Get("Sprites/Grenade.txt");
+    for (std::size_t i = 0; i < Grenades_; i++) {
+        SpriteManager_.Draw(itemSprite, 0, NGame::Vec2i(200 + i * 8, 3));
+    }
+
     if (!App_->State().Variable("NoCompas").Bool()) {
         auto heroCenter = RenderManager_.Camera() + RenderManager_.Size() / 2;
         auto delta = ExitPosition_ - heroCenter;
@@ -1146,22 +1191,19 @@ void THero::Draw() const {
                     index = 3;
                 }
             }
-            RenderManager_.SetLayer(NGame::TRenderManager::Interface);
+            
             screenPosition.X = std::min(std::max(screenPosition.X, 0), RenderManager_.Size().X - 16);
             screenPosition.Y = std::min(std::max(screenPosition.Y, 16), RenderManager_.Size().Y - 16);
-            
             auto arrow = SpriteManager_.Get("Sprites/Arrow.txt");
             SpriteManager_.Draw(arrow, index, screenPosition);
         }
     }
 
     if (DisplayEnd_) {
-        RenderManager_.SetLayer(NGame::TRenderManager::Interface);
-        App_->FontManager().Draw(NGame::TFontManager::Red, {}, "You are dead! Press X");
+        App_->FontManager().Draw(NGame::TFontManager::Red, {4, 4}, "You are dead! Press X");
     }
 
     if (FadeAmount_) {
-        RenderManager_.SetLayer(NGame::TRenderManager::Interface);
         if (WhiteFade_) {
             RenderManager_.SetColor(255, 255, 255, FadeAmount_);
         } else {
@@ -1174,6 +1216,9 @@ void THero::Draw() const {
 void THero::Alarm(NGame::TAlarm::TId id) {
     if (id == 0) {
         AlternateRun_ = !AlternateRun_;
+        if (AlternateRun_ && Speed_.X && State_ == EState::Normal) {
+            App_->AudioManager().Play("Audio/Walk.wav");
+        }
     } else if (id == 1) {
         DisplayEnd_ = true;
     }
@@ -1268,6 +1313,14 @@ void TMainMenu::Input(SDL_Event* event) {
     switch (event->type) {
     case SDL_KEYDOWN:
         if (event->key.keysym.sym == 'x') {
+            App_->AudioManager().Play("Audio/Pickup.wav");
+            App_->State().Variable("Time").SetDouble(60000);
+            App_->State().Variable("FallDamage").SetBool(false);
+            App_->State().Variable("InstantMines").SetBool(false);
+            App_->State().Variable("LimitedGrenades").SetBool(false);
+            App_->State().Variable("DarkLevel").SetBool(false);
+            App_->State().Variable("NoCompas").SetBool(false);
+            App_->State().Variable("Grenades").SetInt(3);
             App_->EntityManager().AddToDeferred("RoomEntity");
             App_->EntityManager().Reset();
         }
@@ -1294,12 +1347,51 @@ TEulaMenu::TEulaMenu(NGame::TEntity::TId id)
     , RenderManager_(App_->RenderManager())
     , SpriteManager_(App_->SpriteManager()) {
     RenderManager_.EnableLight(false);
+
+    std::vector<std::string> toDisableTo;
+
+    if (!App_->State().Variable("FallDamage").Bool()) {
+        toDisableTo.push_back("FallDamage");
+    }
+    if (!App_->State().Variable("InstantMines").Bool()) {
+        toDisableTo.push_back("InstantMines");
+    }
+    if (!App_->State().Variable("LimitedGrenades").Bool()) {
+        toDisableTo.push_back("LimitedGrenades");
+    }
+    if (!App_->State().Variable("DarkLevel").Bool()) {
+        toDisableTo.push_back("DarkLevel");
+    }
+    if (!App_->State().Variable("NoCompas").Bool()) {
+        toDisableTo.push_back("NoCompas");
+    }
+
+    if (!toDisableTo.empty()) {
+        Choice_ = toDisableTo[rand() % toDisableTo.size()];
+    }
 }
 
 void TEulaMenu::Input(SDL_Event* event) {
     switch (event->type) {
     case SDL_KEYDOWN:
         if (event->key.keysym.sym == 'x') {
+            if (!Choice_.empty()) {
+                App_->State().Variable(Choice_).SetBool(true);
+
+                if (!App_->State().Variable("LimitedGrenades").Bool()) {
+                    App_->State().Variable("Grenades").SetInt(3);
+                }
+                App_->AudioManager().Play("Audio/PowerUp.wav");
+                App_->State().Variable("Time").SetDouble(App_->State().Variable("Time").Double() + 30000);
+                App_->EntityManager().AddToDeferred("RoomEntity");
+                App_->EntityManager().Reset();
+            }
+        }
+        else if (event->key.keysym.sym == 'c') {
+            if (!App_->State().Variable("LimitedGrenades").Bool()) {
+                App_->State().Variable("Grenades").SetInt(3);
+            }
+            App_->AudioManager().Play("Audio/Pickup.wav");
             App_->EntityManager().AddToDeferred("RoomEntity");
             App_->EntityManager().Reset();
         }
@@ -1313,11 +1405,33 @@ void TEulaMenu::Update(std::uint32_t delta) {
 
 void TEulaMenu::Draw() const {
     RenderManager_.SetLayer(NGame::TRenderManager::Interface);
-    App_->FontManager().Draw(NGame::TFontManager::Gold,  {}, "Press X to gain debuff and continue");
+
+    NGame::Vec2i position = {50, 50};
+    std::string text;
+
+    if (Choice_.empty()) {
+        text = "There is nothing that you can do";
+        text += "\n\nPress C to ingore";
+        App_->FontManager().Draw(NGame::TFontManager::Red, position, text);
+    } else {
+        if (Choice_ == "FallDamage") {
+            text = "Gain 30 seconds, but there will be\nfall damage";
+        } else if (Choice_ == "InstantMines") {
+            text = "Gain 30 seconds, but mines will explode\ninstantly";
+        } else if (Choice_ == "LimitedGrenades") {
+            text = "Gain 30 seconds, but grenades will\nno longer replenish";
+        } else if (Choice_ == "DarkLevel") {
+            text = "Gain 30 seconds, but the cave is now\nshrouded in darkness";
+        } else if (Choice_ == "NoCompas") {
+            text = "Gain 30 seconds, but you lose your compass";
+        }
+        text += "\n\nPress X to accept or C to ingore";
+        App_->FontManager().Draw(NGame::TFontManager::Gold, position, text);
+    }
+    
 }
 
 void TEulaMenu::Alarm(NGame::TAlarm::TId id) {
-
 }
 
 TIntroMenu::TIntroMenu(NGame::TEntity::TId id)
@@ -1332,6 +1446,7 @@ void TIntroMenu::Input(SDL_Event* event) {
     switch (event->type) {
     case SDL_KEYDOWN:
         if (event->key.keysym.sym == 'x') {
+            App_->AudioManager().Play("Audio/Pickup.wav");
             App_->EntityManager().AddToDeferred("MainMenu");
             App_->EntityManager().Reset();
         }
@@ -1419,7 +1534,7 @@ TGrenadeEntity::TGrenadeEntity(NGame::TEntity::TId id)
     , SpriteManager_(App_->SpriteManager()) {
     SetSize(9);
     Sprite_ = NGame::TApp::Instance()->SpriteManager().Get("Sprites/Grenade.txt");
-    Alarm_.Set(0, 3000 + rand() % 1000);
+    Alarm_.Set(0, 1000 + rand() % 1000);
     Alarm_.Set(1, 100);
 }
 

@@ -53,7 +53,7 @@ static void MainLoop(void) {
 
 int main(int argc, char** argv)
 {
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     
     srand(time(NULL));
     

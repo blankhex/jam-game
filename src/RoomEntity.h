@@ -319,6 +319,8 @@ private:
     bool DisplayEnd_ = false;
     bool WhiteFade_ = false;
     std::size_t FadeAmount_ = 0;
+    double RemainingTime_ = 0;
+    int Grenades_ = 0;
 };
 
 class TBackgroundTiler : public NGame::TEntity {
@@ -385,6 +387,7 @@ private:
     NGame::TApp* App_;    
     NGame::TSpriteManager& SpriteManager_;
     NGame::TRenderManager& RenderManager_;
+    std::string Choice_;
 };
 
 class TIntroMenu : public NGame::TEntity {

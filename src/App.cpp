@@ -26,6 +26,7 @@ TApp::TApp() {
     EntityManager_ = std::make_unique<TEntityManager>(*RenderManager_, 1000 / 60);
     FontManager_ = std::make_unique<TFontManager>(*SpriteManager_);
     DigitManager_ = std::make_unique<TDigitManager>(*SpriteManager_);
+    AudioManager_ = std::make_unique<TAudioManager>(*FileManager_);
 }
 
 TApp::~TApp() {
@@ -43,6 +44,7 @@ void TApp::Process() {
     RenderManager_->Reset();
     EntityManager_->Run();
     RenderManager_->Run();
+    AudioManager_->Run();
 }
 
 int TApp::Run() {
@@ -86,6 +88,10 @@ TDigitManager& TApp::DigitManager() {
     return *DigitManager_;
 }
 
+TAudioManager& TApp::AudioManager() {
+    return *AudioManager_;
+}
+
 const TFileManager& TApp::FileManager() const {
     return *FileManager_;
 }
@@ -112,6 +118,10 @@ const TFontManager& TApp::FontManager() const {
 
 const TDigitManager& TApp::DigitManager() const {
     return *DigitManager_;
+}
+
+const TAudioManager& TApp::AudioManager() const {
+    return *AudioManager_;
 }
 
 } // namespace NGame

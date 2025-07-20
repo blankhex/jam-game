@@ -3,17 +3,18 @@
 SRCS = \
     src/Alarm.cpp \
     src/App.cpp \
+    src/AudioManager.cpp \
     src/Common.cpp \
+    src/DigitManager.cpp \
     src/Entity.cpp \
     src/EntityManager.cpp \
     src/FileManager.cpp \
+    src/FontManager.cpp \
     src/Gridmap.cpp \
     src/Main.cpp \
     src/RenderManager.cpp \
+    src/RoomEntity.cpp \
     src/SpriteManager.cpp \
     src/State.cpp \
     src/SurfaceManager.cpp \
-    src/FontManager.cpp \
-    src/DigitManager.cpp \
-    src/RoomEntity.cpp \
     src/Variable.cpp
