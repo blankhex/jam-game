@@ -33,9 +33,9 @@ jobs:
       - name: Prepare deployment folder
         run: |
           mkdir deploy
-          cp eulamadness.html deploy/
-          cp eulamadness.js deploy/
-          cp eulamadness.wasm deploy/
+          cp index.html deploy/
+          cp index.js deploy/
+          cp index.wasm deploy/
           cp data.pak deploy/
 
       - name: Deploy to GitHub Pages
