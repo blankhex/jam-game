@@ -10,7 +10,7 @@ TAudioManager::TAudioManager(TFileManager& fileManager)
     desired.freq = 44100;
     desired.format = AUDIO_F32;
     desired.channels = 2;
-    desired.samples = 1024;
+    desired.samples = 4096;
     desired.callback = NULL;
 
     Device_ = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, 0);
@@ -35,7 +35,7 @@ void TAudioManager::Run() {
     std::uint32_t currentTick = SDL_GetTicks();
 
     Paint(Stream_, currentTick - LastTick_);
-    if (SDL_GetQueuedAudioSize(Device_) < 2048) {
+    if (SDL_GetQueuedAudioSize(Device_) < 8192) {
         const int bytesRemaining = SDL_AudioStreamAvailable(Stream_);
         if (bytesRemaining > 0) {
             const int samplesRemaining = SDL_min(bytesRemaining, 32 * 1024);
