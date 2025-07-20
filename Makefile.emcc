@@ -22,6 +22,7 @@ dist: $(EXE)
 
 $(EXE): $(OBJS)
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
+	cp index.template.html $(EXE)
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c $< -o $@
