@@ -1,6 +1,6 @@
 # Game
 
-Game should be available here: https://blankhex.github.io/jam-game/eulamadness.html
+Game should be available here: https://blankhex.github.io/jam-game/index.html
 
 # Building
 
