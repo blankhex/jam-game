@@ -21,7 +21,7 @@ TApp* TApp::Instance() {
 TApp::TApp() {
     FileManager_ = std::make_unique<TFileManager>("Data", "data.pak");
     SurfaceManager_ = std::make_unique<TSurfaceManager>(*FileManager_);
-    RenderManager_ = std::make_unique<TRenderManager>(*SurfaceManager_, 320, 240, "SDL Game");
+    RenderManager_ = std::make_unique<TRenderManager>(*SurfaceManager_, 320, 240, "EULAMadness");
     SpriteManager_ = std::make_unique<TSpriteManager>(*FileManager_, *RenderManager_);
     EntityManager_ = std::make_unique<TEntityManager>(*RenderManager_, 1000 / 60);
     FontManager_ = std::make_unique<TFontManager>(*SpriteManager_);
