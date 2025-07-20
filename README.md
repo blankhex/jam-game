@@ -2,6 +2,8 @@
 
 Game should be available here: https://blankhex.github.io/jam-game/index.html
 
+Everything here is under CC0
+
 # Building
 
 ## Common
