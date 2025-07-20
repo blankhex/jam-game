@@ -1200,7 +1200,7 @@ void THero::Draw() const {
     }
 
     if (DisplayEnd_) {
-        App_->FontManager().Draw(NGame::TFontManager::Red, {4, 4}, "Press [Any] key to continue");
+        App_->FontManager().Draw(NGame::TFontManager::Red, {4, 4}, "Press [Z] key to continue");
     }
 
     if (FadeAmount_) {
@@ -1349,6 +1349,7 @@ void TMainMenu::Draw() const {
     App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 110}, "             Z to [Jump]");
     App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 120}, "             X to throw [Grenade]");
     App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 130}, "             Down and Z to [Jump Down] from platform");
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 140}, "             Up to [Interact]");
 
     App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 170}, "Press X to start a game");
     App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 180}, "Press Arrow keys to change volume [" + std::to_string(int(App_->AudioManager().Volume() * 100)) + "]");
