@@ -846,7 +846,7 @@ void THero::Update(std::uint32_t delta) {
                     if (KeysPressed_[static_cast<int>(EKeys::Z)]) {
                         Speed_.Y = -std::sqrt(2 * Gravity_ * (16 + (16 - Size().Y)));
                         State_ = EState::Jump;
-                        App_->AudioManager().Play("Audio/jump.wav");
+                        App_->AudioManager().Play("Audio/Jump.wav");
                         continue;
                     }
                 }
