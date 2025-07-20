@@ -7,10 +7,10 @@ TAudioManager::TAudioManager(TFileManager& fileManager)
     : FileManager_(fileManager) {
 
     SDL_AudioSpec desired;
-    desired.freq = 44100;
+    desired.freq = 48000;
     desired.format = AUDIO_F32;
     desired.channels = 2;
-    desired.samples = 4096;
+    desired.samples = 2048;
     desired.callback = NULL;
 
     Device_ = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, 0);
@@ -18,7 +18,7 @@ TAudioManager::TAudioManager(TFileManager& fileManager)
         throw std::runtime_error("no audio device");
     }
 
-    Stream_ = SDL_NewAudioStream(AUDIO_U8, 1, 22050, AUDIO_F32, 2, 44100);
+    Stream_ = SDL_NewAudioStream(AUDIO_U8, 1, 22050, AUDIO_F32, 2, 48000);
     if (!Stream_) {
         throw std::runtime_error("can't create audio stream");
     }
@@ -64,8 +64,8 @@ void TAudioManager::Play(const std::string& path) {
 }
 
 void TAudioManager::Paint(SDL_AudioStream* stream, std::uint32_t ticks) {
-    std::uint8_t temporary[512];
-    std::size_t samples = std::min((ticks * 22050 + 999) / 1000, 512u);
+    std::uint8_t temporary[1024];
+    std::size_t samples = std::min((ticks * 22050 + 999) / 1000, 1024u);
 
     // Mix
     for (size_t i = 0; i < samples; ++i) {
