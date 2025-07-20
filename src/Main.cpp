@@ -39,6 +39,7 @@ static void InitApp(void) {
     app->EntityManager().RegisterEntity<TTorchEntity>("TorchEntity");
     app->EntityManager().RegisterEntity<TGrenadeEntity>("GrenadeEntity");
 
+    app->AudioManager().SetVolume(.3);
     app->EntityManager().AddToDeferred("IntroMenu");
     app->EntityManager().Reset();
 }

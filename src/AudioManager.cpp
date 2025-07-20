@@ -86,6 +86,8 @@ void TAudioManager::Paint(SDL_AudioStream* stream, std::uint32_t ticks) {
             }
         }
 
+        accumulator *= Volume_;
+
         accumulator += 128;
         if (accumulator < 0) {
             accumulator = 0;
@@ -103,7 +105,18 @@ void TAudioManager::Paint(SDL_AudioStream* stream, std::uint32_t ticks) {
     }
 }
 
+void TAudioManager::SetVolume(float volume) {
+    if (volume > 1) {
+        volume = 1;
+    } else if (volume < 0) {
+        volume = 0;
+    }
+    Volume_ = volume;
+}
 
+float TAudioManager::Volume() const {
+    return Volume_;
+}
 
 TAudioManager::TSound* TAudioManager::Load(const std::string& path) {
     auto it = Sounds_.find(path);

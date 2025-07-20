@@ -5,7 +5,7 @@ CC = emcc
 CXX = emcc
 CXXFLAGS ?= -sUSE_SDL=2 -O3 -std=c++17 -Iinclude -fexceptions
 LDFLAGS ?= -sUSE_SDL=2 -O3 -fexceptions --embed-file=data.pak@data.pak -sMAX_WEBGL_VERSION=2
-TARGET = eulamadness.html
+TARGET = index.html
 
 # System configuration
 include Makefile.srcs
@@ -28,4 +28,4 @@ $(EXE): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	-rm -rf $(OBJS) $(EXE) eulamadness.js eulamadness.wasm eulamadness.data dist
+	-rm -rf $(OBJS) $(EXE) index.js index.wasm index.data dist

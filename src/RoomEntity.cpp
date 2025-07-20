@@ -1200,7 +1200,7 @@ void THero::Draw() const {
     }
 
     if (DisplayEnd_) {
-        App_->FontManager().Draw(NGame::TFontManager::Red, {4, 4}, "You are dead! Press X");
+        App_->FontManager().Draw(NGame::TFontManager::Red, {4, 4}, "Press [Any] key to continue");
     }
 
     if (FadeAmount_) {
@@ -1323,6 +1323,14 @@ void TMainMenu::Input(SDL_Event* event) {
             App_->State().Variable("Grenades").SetInt(3);
             App_->EntityManager().AddToDeferred("RoomEntity");
             App_->EntityManager().Reset();
+        } else if (event->key.keysym.sym == SDLK_UP) {
+            App_->AudioManager().SetVolume(App_->AudioManager().Volume() + 0.1);
+        } else if (event->key.keysym.sym == SDLK_DOWN) {
+            App_->AudioManager().SetVolume(App_->AudioManager().Volume() - 0.1);
+        } else if (event->key.keysym.sym == SDLK_LEFT) {
+            App_->AudioManager().SetVolume(App_->AudioManager().Volume() - 0.01);
+        } else if (event->key.keysym.sym == SDLK_RIGHT) {
+            App_->AudioManager().SetVolume(App_->AudioManager().Volume() + 0.01);
         }
         break;
     }
@@ -1334,7 +1342,17 @@ void TMainMenu::Update(std::uint32_t delta) {
 
 void TMainMenu::Draw() const {
     RenderManager_.SetLayer(NGame::TRenderManager::Interface);
-    App_->FontManager().Draw(NGame::TFontManager::Gold,  {}, "Press X to start a game");
+    App_->FontManager().Draw(NGame::TFontManager::White,  {50, 50}, "EULAMadness");
+    App_->FontManager().Draw(NGame::TFontManager::Swamp,  {50, 60}, "Prototype");
+
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 100}, "Instruction: WASD or Arrow keys to [Move]");
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 110}, "             Z to [Jump]");
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 120}, "             X to throw [Grenade]");
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 130}, "             Down and Z to [Jump Down] from platform");
+
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 170}, "Press X to start a game");
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 180}, "Press Arrow keys to change volume [" + std::to_string(int(App_->AudioManager().Volume() * 100)) + "]");
+
 }
 
 void TMainMenu::Alarm(NGame::TAlarm::TId id) {
@@ -1407,26 +1425,35 @@ void TEulaMenu::Draw() const {
     RenderManager_.SetLayer(NGame::TRenderManager::Interface);
 
     NGame::Vec2i position = {50, 50};
-    std::string text;
+    std::string goodText;
+    std::string badText;
+    std::string neutralText;
 
     if (Choice_.empty()) {
-        text = "There is nothing that you can do";
-        text += "\n\nPress C to ingore";
-        App_->FontManager().Draw(NGame::TFontManager::Red, position, text);
+        badText = "There is nothing that you can do";
+        badText += "\n\nPress C to ingore";
+        App_->FontManager().Draw(NGame::TFontManager::Red, position, badText);
     } else {
         if (Choice_ == "FallDamage") {
-            text = "Gain 30 seconds, but there will be\nfall damage";
+            goodText = "Gain 30 seconds...";
+            badText = "...but there will be fall damage";
         } else if (Choice_ == "InstantMines") {
-            text = "Gain 30 seconds, but mines will explode\ninstantly";
+            goodText = "Gain 30 seconds...";
+            badText = "...but mines will explode instantly";
         } else if (Choice_ == "LimitedGrenades") {
-            text = "Gain 30 seconds, but grenades will\nno longer replenish";
+            goodText = "Gain 30 seconds...";
+            badText = "...but grenades will no longer replenish";
         } else if (Choice_ == "DarkLevel") {
-            text = "Gain 30 seconds, but the cave is now\nshrouded in darkness";
+            goodText = "Gain 30 seconds...";
+            badText = "...but the cave is now shrouded in darkness";
         } else if (Choice_ == "NoCompas") {
-            text = "Gain 30 seconds, but you lose your compass";
+            goodText = "Gain 30 seconds...";
+            badText = "...but you lose your compass";
         }
-        text += "\n\nPress X to accept or C to ingore";
-        App_->FontManager().Draw(NGame::TFontManager::Gold, position, text);
+        neutralText = "Press X to accept or C to ingore";
+        App_->FontManager().Draw(NGame::TFontManager::Green, position, goodText);
+        App_->FontManager().Draw(NGame::TFontManager::Red, position + NGame::Vec2i{0, 12}, badText);
+        App_->FontManager().Draw(NGame::TFontManager::Gold, position + NGame::Vec2i{0, 40}, neutralText);
     }
     
 }
@@ -1460,7 +1487,11 @@ void TIntroMenu::Update(std::uint32_t delta) {
 
 void TIntroMenu::Draw() const {
     RenderManager_.SetLayer(NGame::TRenderManager::Interface);
-    App_->FontManager().Draw(NGame::TFontManager::Gold,  {}, "Made by an idiot. Press X to continue");
+    App_->FontManager().Draw(NGame::TFontManager::White,  {50, 50}, "EULAMadness");
+    App_->FontManager().Draw(NGame::TFontManager::Swamp,  {50, 60}, "Prototype");
+
+    App_->FontManager().Draw(NGame::TFontManager::Gold,  {50, 100}, "Press X to continue");
+    App_->FontManager().Draw(NGame::TFontManager::Swamp,  {50, 200}, "made by blankhex. 2025");
 }
 
 void TIntroMenu::Alarm(NGame::TAlarm::TId id) {

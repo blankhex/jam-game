@@ -15,6 +15,8 @@ public:
     void Run();
     void Play(const std::string& sound);
     void Paint(SDL_AudioStream* stream, std::uint32_t ticks);
+    void SetVolume(float volume);
+    float Volume() const;
 
 private:
     struct TSound {
@@ -34,6 +36,7 @@ private:
 
 private:
     TFileManager& FileManager_;
+    float Volume_ = 1.0;
     TSoundChannel Channels_[16];
     std::unordered_map<std::string, TSound*> Sounds_;
     SDL_AudioDeviceID Device_;
